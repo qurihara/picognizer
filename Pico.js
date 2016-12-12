@@ -1,46 +1,41 @@
 var DTW = require("./lib/dtw");
+require("./constants.js");
+
 var dtw = new DTW();
 
-
 var Pico = function () {
-	var state = { feature: 'amplitudeSpectrum',
-		          duration: 0.1,
-		          bufSize: 512,
+	var state = { feature: 'powerSpectrum', // 'amplitudeSpectrum'
+		          bufSize: 1024, //FFTsize
+		          duration: 0.1, //second
 		          recog: false};
 
-	this.start = function(audiofile){
-		state = init(audiofile, state);
-		var cost = inputMic(state); //ここ
-		console.log(cost);
-		return cost;
-	}
-
-	this.recognized =  function(audiofile, threshold, callback){
+	this.recognized =  function(audiofile, callback){
 		state.recog = true;
-		state.threshold = threshold;
 		init(audiofile, state);
-		var cost = inputMic(state,callback);
+		cost = inputMic(state,callback);
 		return;
 	}
 
 	this.stop =  function(){
-		console.log("stoppped");
+		state.recog = false;
+		console.log("Stoppped.");
 		window.clearInterval();
 		return;
 	}
+
 };
 
 function init(audiofile, state){
-	window.AudioContext = window.AudioContext || window.webkitAudioContext;
 	var audio = new Audio(audiofile);
-	audio.id = "audio";
-
+	
+	audio.addEventListener('loadedmetadata', function() {
+		state.maxframe = Math.ceil(audio.duration/state.duration);
+	});
+	
 	state.acontext = new AudioContext();
 	state.source = state.acontext.createMediaElementSource(audio);
 
-	state.maxframe = 6;//Math.ceil(audio.duration/state.duration); //ここもなおす
 	return state;
-
 }
 
 function inputMic(state, callback) {
@@ -52,31 +47,28 @@ function inputMic(state, callback) {
 
     // microphone
 	console.log("using mic");
-	console.log("calculating cost");
-
-	navigator.getUserMedia = ( navigator.getUserMedia ||
-                               navigator.webkitGetUserMedia ||
-                               navigator.mozGetUserMedia ||
-                               navigator.msGetUserMedia);
-
+	if (!navigator.getUserMedia){
+    	alert('getUserMedia is not supported.');
+	}
+	
 	navigator.getUserMedia({video: false, audio: true},
 		//success
 		function(mediaStream){
 			state.source2 = state.acontext.createMediaStreamSource(mediaStream);
+			console.log("calculating cost");
 
 	    	setInterval(function(){
 	    		framecount++;
     			meyda.setSource(state.source2);
 				data2.push(featureExtraction(meyda, state));
-				if (framecount>state.maxframe+1){
-					var cost = dtw.compute(data1, data2);
-
-					if (state.recog == true && cost < state.threshold){
-						//console.log("Cost: " + cost + " recognized");
-						if (callback != null) callback(cost);
+				if (framecount>state.maxframe+2){
+					if(meyda.get("rms")>0.0001){ //not silence
+						cost = dtw.compute(data1, data2);
+						if (state.recog == true){
+							if (callback != null) callback(cost);
+						}
 					}
 					data2.shift();
-					return cost;
 				}
 				else if (framecount==state.maxframe+1){
 					data1.shift();
@@ -84,7 +76,8 @@ function inputMic(state, callback) {
 				else{
 					meyda.setSource(state.source);
 					data1.push(featureExtraction(meyda, state));
-    			}
+	    		}
+	    		
 	        },1000*state.duration)
 
 		},
