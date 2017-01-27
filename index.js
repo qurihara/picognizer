@@ -3,12 +3,15 @@ var P = new Pico;
 
 window.onload = function () {
 
-	//test coin
+	////coin
 	P.recognized('http://jsrun.it/assets/a/k/U/T/akUT5.mp3', function(cost){
-		//if (cost<155){ //
-			console.log("Recognized. cost: " + cost.toFixed(2));
-		//}
+		console.log("coin cost: " + cost.toFixed(2));
 	});
+	
+	////gainlife
+	//P.recognized('http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3', function(cost){
+	//	console.log("gainlife cost: " + cost.toFixed(2));
+	//});
 };
 
 document.onkeydown = function (e){
@@ -20,8 +23,6 @@ document.onkeydown = function (e){
 	}
 	/////enter key
 	else if(e.keyCode == 13){
-		P.recognized('http://jsrun.it/assets/a/k/U/T/akUT5.mp3', function(cost){
-			console.log("Recognized. cost: " + cost.toFixed(2));
-		});
+
 	}
 };

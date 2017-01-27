@@ -2,17 +2,48 @@ var DTW = require("./lib/dtw");
 require("./constants.js");
 
 var dtw = new DTW();
+var cost;
+
+audio = new Audio();
+acontext= new AudioContext();
+mic = null;
+micon = false;
 
 var Pico = function () {
-	var state = { feature: 'powerSpectrum', // 'amplitudeSpectrum'
-		          bufSize: 1024, //FFTsize
-		          duration: 0.1, //second
-		          recog: false};
+	// プライベート変数
 
+	// default
+	var duration = 0.1; //seconds
+	var options = {
+		"audioContext": acontext, // required
+		"source": null, // required
+		"bufferSize": 4096, // required
+		"windowingFunction": "hamming", // optional
+		"featureExtractors": ["powerSpectrum"],
+		"callback": function(output){ features = output; }
+	};
+	
+	//optionsの書き換え
+	//this.setparameter = function(){
+	//	
+	//}
+	
 	this.recognized =  function(audiofile, callback){
-		state.recog = true;
-		init(audiofile, state);
-		cost = inputMic(state,callback);
+		var promise = Promise.resolve();
+		var effectdata=[];
+		promise.then(function(){
+			if (micon == false){
+				usingMic();
+			}
+		})
+		.then(function(){
+				effectdata = loadAudio(audiofile, effectdata, options);
+		})
+		.then(function(){
+			audio.addEventListener('loadstart', function(){ 
+				costCalculation(options, duration, callback)
+			})
+		});
 		return;
 	}
 
@@ -22,71 +53,86 @@ var Pico = function () {
 		window.clearInterval();
 		return;
 	}
-
 };
 
-function init(audiofile, state){
-	var audio = new Audio(audiofile);
-	
-	audio.addEventListener('loadedmetadata', function() {
-		state.maxframe = Math.ceil(audio.duration/state.duration);
-	});
-	
-	state.acontext = new AudioContext();
-	state.source = state.acontext.createMediaElementSource(audio);
+//getparameter
+/*function getParams(func) {
+    var source = func.toString()
+        .replace(/\/\/.*$|\/\*[\s\S]*?\*\/|\s/gm, ''); // strip comments
+    var params = source.match(/\((.*?)\)/)[1].split(',');
+    if (params.length === 1 && params[0] === '')
+        return [];
+    return params;
+}*/
 
-	return state;
-}
-
-function inputMic(state, callback) {
-	var data1 = [];
-	var data2 = [];
-
-	var meyda = new Meyda(state.acontext, state.source, state.bufSize);
-	var framecount = 0;
-
-    // microphone
+//microphone
+function usingMic(){
 	console.log("using mic");
 	if (!navigator.getUserMedia){
     	alert('getUserMedia is not supported.');
 	}
-	
 	navigator.getUserMedia({video: false, audio: true},
-		//success
-		function(mediaStream){
-			state.source2 = state.acontext.createMediaStreamSource(mediaStream);
-			console.log("calculating cost");
-
-	    	setInterval(function(){
-	    		framecount++;
-    			meyda.setSource(state.source2);
-				data2.push(featureExtraction(meyda, state));
-				if (framecount>state.maxframe+2){
-					if(meyda.get("rms")>0.0001){ //not silence
-						cost = dtw.compute(data1, data2);
-						if (state.recog == true){
-							if (callback != null) callback(cost);
-						}
-					}
-					data2.shift();
-				}
-				else if (framecount==state.maxframe+1){
-					data1.shift();
-				}
-				else{
-					meyda.setSource(state.source);
-					data1.push(featureExtraction(meyda, state));
-	    		}
-	    		
-	        },1000*state.duration)
-
-		},
-		//error
+	function(mediaStream){ //success
+			audio.src = mediaStream;
+			mic = acontext.createMediaStreamSource(mediaStream);
+			micon = true;
+			console.log("The microphone turned on.");
+		}, //error
 		function(err){
 			alert("Error accessing the microphone.");
 		}
 	)
+}
 
+//sound effect
+function loadAudio(filename, data, options){
+	var effectaudio = new Audio();
+	effectaudio.src =  filename;
+	asource = acontext.createMediaElementSource(effectaudio);
+	var eachframesec=0.01;
+	
+	console.log("Please wait until calculation of spectrogram is over.");
+	
+	effectaudio.addEventListener('loadstart', function() {
+		options["source"] = asource;
+		var meyda = Meyda.createMeydaAnalyzer(options);
+		meyda.start(options["featureExtractors"][0]);
+		setInterval(function(){
+			if (features !=null) data.push(features);
+			meyda.stop();
+		},1000*eachframesec)
+	})
+	
+	return data;
+}
+
+//for dtw
+function costCalculation(options, duration, callback) {
+	var data=[];
+	var eachframesec=0.01;
+	
+	//window.audio.addEventListener('loadstart', function(){//mic
+		if (duration<options["bufferSize"]/acontext.sampleRate){
+			throw new Error("bufferSize should be smaller than duration.");
+		}
+
+		options["source"] = window.mic;
+		var meyda = Meyda.createMeydaAnalyzer(options);
+		console.log("calculating cost");
+		meyda.start(options["featureExtractors"][0]);
+		
+		setInterval(function(){
+			data.push(features);
+			meyda.stop();
+		},1000*eachframesec)
+		
+		setInterval(function(){
+			//costの計算
+			//cost = dtw.compute(data, effectdata);
+			//if (callback != null) callback(cost);
+			data = [];
+		},1000*duration)
+	//})
 }
 
 function specNormalization(freq, bufSize){
@@ -96,11 +142,4 @@ function specNormalization(freq, bufSize){
 	}
 	return freq;
 }
-
-function featureExtraction(meydaAnalyzer, state){
-    var f = meydaAnalyzer.get(state.feature);
-    f = specNormalization(f, state.bufSize);
-    return f;
-}
-
 module.exports = Pico;
