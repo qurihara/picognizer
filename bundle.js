@@ -721,10 +721,10 @@ require("./constants.js");
 var dtw = new DTW();
 var cost;
 
-audio = new Audio();
-acontext= new AudioContext();
-mic = null;
-micon = false;
+var audio = new Audio();
+var acontext= new AudioContext();
+var mic = null;
+var micon = false;
 
 var Pico = function () {
 	// プライベート変数
@@ -740,7 +740,7 @@ var Pico = function () {
 		"callback": function(output){ features = output; }
 	};
 	
-	//optionsの書き換え
+	//options
 	//this.setparameter = function(){
 	//	
 	//}
@@ -758,7 +758,7 @@ var Pico = function () {
 		})
 		.then(function(){
 			audio.addEventListener('loadstart', function(){ 
-				costCalculation(options, duration, callback)
+				costCalculation(effectdata, options, duration, callback)
 			})
 		});
 		return;
@@ -824,16 +824,16 @@ function loadAudio(filename, data, options){
 }
 
 //for dtw
-function costCalculation(options, duration, callback) {
+function costCalculation(effectdata, options, duration, callback) {
 	var data=[];
 	var eachframesec=0.01;
 	
-	//window.audio.addEventListener('loadstart', function(){//mic
+	//audio.addEventListener('loadstart', function(){//mic
 		if (duration<options["bufferSize"]/acontext.sampleRate){
 			throw new Error("bufferSize should be smaller than duration.");
 		}
 
-		options["source"] = window.mic;
+		options["source"] = mic;
 		var meyda = Meyda.createMeydaAnalyzer(options);
 		console.log("calculating cost");
 		meyda.start(options["featureExtractors"][0]);
@@ -845,8 +845,8 @@ function costCalculation(options, duration, callback) {
 		
 		setInterval(function(){
 			//costの計算
-			//cost = dtw.compute(data, effectdata);
-			//if (callback != null) callback(cost);
+			cost = dtw.compute(data, effectdata);
+			if (callback != null) callback(cost);
 			data = [];
 		},1000*duration)
 	//})
