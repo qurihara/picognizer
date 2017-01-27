@@ -805,28 +805,31 @@ function usingMic(){
 function loadAudio(filename, data, options){
 	var effectaudio = new Audio();
 	effectaudio.src =  filename;
-	asource = acontext.createMediaElementSource(effectaudio);
-	var eachframesec=0.01;
+	var framesec=0.02;
+	//var promise = Promise.resolve();
 	
 	console.log("Please wait until calculation of spectrogram is over.");
 	
-	effectaudio.addEventListener('loadstart', function() {
-		options["source"] = asource;
+	effectaudio.addEventListener('loadstart', function() { 
+		options["source"] = acontext.createMediaElementSource(effectaudio);
 		var meyda = Meyda.createMeydaAnalyzer(options);
 		meyda.start(options["featureExtractors"][0]);
 		setInterval(function(){
-			if (features !=null) data.push(features);
+			data.push(features); //ここで失敗する
 			meyda.stop();
-		},1000*eachframesec)
+		},1000*framesec)
+		
 	})
-	
-	return data;
+	effectaudio.addEventListener('ended', function() { 
+		return data;
+	})
+
 }
 
 //for dtw
 function costCalculation(effectdata, options, duration, callback) {
 	var data=[];
-	var eachframesec=0.01;
+	var framesec=0.02;
 	
 	//audio.addEventListener('loadstart', function(){//mic
 		if (duration<options["bufferSize"]/acontext.sampleRate){
@@ -841,7 +844,7 @@ function costCalculation(effectdata, options, duration, callback) {
 		setInterval(function(){
 			data.push(features);
 			meyda.stop();
-		},1000*eachframesec)
+		},1000*framesec)
 		
 		setInterval(function(){
 			//costの計算

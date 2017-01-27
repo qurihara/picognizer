@@ -10,7 +10,6 @@ var mic = null;
 var micon = false;
 
 var Pico = function () {
-	// プライベート変数
 
 	// default
 	var duration = 0.1; //seconds
@@ -18,9 +17,9 @@ var Pico = function () {
 		"audioContext": acontext, // required
 		"source": null, // required
 		"bufferSize": 4096, // required
-		"windowingFunction": "hamming", // optional
+		"windowingFunction": "hamming",
 		"featureExtractors": ["powerSpectrum"],
-		"callback": function(output){ features = output; }
+		"callback": function(output){ features = output; } //callback
 	};
 	
 	//options
@@ -88,51 +87,49 @@ function usingMic(){
 function loadAudio(filename, data, options){
 	var effectaudio = new Audio();
 	effectaudio.src =  filename;
-	asource = acontext.createMediaElementSource(effectaudio);
-	var eachframesec=0.01;
+	var framesec=0.02;
+	//var promise = Promise.resolve();
 	
 	console.log("Please wait until calculation of spectrogram is over.");
 	
-	effectaudio.addEventListener('loadstart', function() {
-		options["source"] = asource;
+	effectaudio.addEventListener('loadstart', function() { 
+		options["source"] = acontext.createMediaElementSource(effectaudio);
 		var meyda = Meyda.createMeydaAnalyzer(options);
 		meyda.start(options["featureExtractors"][0]);
 		setInterval(function(){
-			if (features !=null) data.push(features);
+			data.push(features); //ここで失敗する
 			meyda.stop();
-		},1000*eachframesec)
+		},1000*framesec)
+		return data;
 	})
-	
-	return data;
+
 }
 
 //for dtw
 function costCalculation(effectdata, options, duration, callback) {
 	var data=[];
-	var eachframesec=0.01;
+	var framesec=0.02;
 	
-	//audio.addEventListener('loadstart', function(){//mic
-		if (duration<options["bufferSize"]/acontext.sampleRate){
-			throw new Error("bufferSize should be smaller than duration.");
-		}
+	if (duration<options["bufferSize"]/acontext.sampleRate){
+		throw new Error("bufferSize should be smaller than duration.");
+	}
 
-		options["source"] = mic;
-		var meyda = Meyda.createMeydaAnalyzer(options);
-		console.log("calculating cost");
-		meyda.start(options["featureExtractors"][0]);
-		
-		setInterval(function(){
-			data.push(features);
-			meyda.stop();
-		},1000*eachframesec)
-		
-		setInterval(function(){
-			//costの計算
-			cost = dtw.compute(data, effectdata);
-			if (callback != null) callback(cost);
-			data = [];
-		},1000*duration)
-	//})
+	options["source"] = mic;
+	var meyda = Meyda.createMeydaAnalyzer(options);
+	console.log("calculating cost");
+	meyda.start(options["featureExtractors"][0]);
+	
+	setInterval(function(){
+		data.push(features);
+		meyda.stop();
+	},1000*framesec)
+	
+	setInterval(function(){
+		//costの計算
+		cost = dtw.compute(data, effectdata);
+		if (callback != null) callback(cost);
+		data = [];
+	},1000*duration)
 }
 
 function specNormalization(freq, bufSize){
