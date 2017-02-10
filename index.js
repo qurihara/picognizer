@@ -4,7 +4,12 @@ var P = new Pico;
 window.onload = function () {
 
 	////coin
-	P.recognized('http://jsrun.it/assets/a/k/U/T/akUT5.mp3', function(cost){
+	//P.recognized('http://jsrun.it/assets/a/k/U/T/akUT5.mp3', function(cost){
+	//	console.log("coin cost: " + cost.toFixed(2));
+	//});
+	
+	//local file
+	P.recognized('Coin.mp3', function(cost){
 		console.log("coin cost: " + cost.toFixed(2));
 	});
 	

@@ -1,48 +1,52 @@
 var DTW = require("./lib/dtw");
 require("./constants.js");
+require("./bufferLoader.js");
 
 var dtw = new DTW();
 var cost;
-
-var audio = new Audio();
+var audio = {};
+var source = {};
 var acontext= new AudioContext();
-var mic = null;
 var micon = false;
+var mediaStream;
 
-var Pico = function () {
-
-	// default
-	var duration = 0.1; //seconds
+var Pico = function(){
+	var duration = 1.0; //seconds
+	
 	var options = {
 		"audioContext": acontext, // required
 		"source": null, // required
 		"bufferSize": 4096, // required
 		"windowingFunction": "hamming",
-		"featureExtractors": ["powerSpectrum"],
-		"callback": function(output){ features = output; } //callback
+		"featureExtractors": ["powerSpectrum"]
 	};
 	
-	//options
-	//this.setparameter = function(){
-	//	
-	//}
-	
+	this.init = function(){
+		for (var i = 0; i < arguments.length; i++) {
+			var tmp = arguments[i];
+			console.log(tmp);
+		}
+	}
+
 	this.recognized =  function(audiofile, callback){
-		var promise = Promise.resolve();
-		var effectdata=[];
-		promise.then(function(){
-			if (micon == false){
-				usingMic();
-			}
+		
+		var effectdata = [];
+		//var repeatTimer;
+		loadAudio(audiofile, effectdata, options);
+		
+		if (micon == false){
+			usingMic();
+		}
+		audio["mic"].addEventListener('loadstart', function(){
+			costCalculation(effectdata, options, duration, callback);
 		})
-		.then(function(){
-				effectdata = loadAudio(audiofile, effectdata, options);
-		})
-		.then(function(){
-			audio.addEventListener('loadstart', function(){ 
-				costCalculation(effectdata, options, duration, callback)
-			})
-		});
+		 
+		//p.then(function(){ //読み込まれるまで待つ
+		//console.log(effectdata);
+		//audio["mic"].addEventListener('loadstart', function() { 
+		//	costCalculation(effectdata, options, duration, callback);
+		//})
+		//});
 		return;
 	}
 
@@ -54,15 +58,13 @@ var Pico = function () {
 	}
 };
 
-//getparameter
-/*function getParams(func) {
-    var source = func.toString()
-        .replace(/\/\/.*$|\/\*[\s\S]*?\*\/|\s/gm, ''); // strip comments
-    var params = source.match(/\((.*?)\)/)[1].split(',');
-    if (params.length === 1 && params[0] === '')
-        return [];
-    return params;
-}*/
+function getParams(func) {
+	var source = func.toString().replace(/\/\/.*$|\/\*[\s\S]*?\*\/|\s/gm, ''); // strip comments
+	var params = source.match(/\((.*?)\)/)[1].split(',');
+	if (params.length === 1 && params[0] === '')
+    	return [];
+	return params;
+}
 
 //microphone
 function usingMic(){
@@ -71,11 +73,14 @@ function usingMic(){
     	alert('getUserMedia is not supported.');
 	}
 	navigator.getUserMedia({video: false, audio: true},
-	function(mediaStream){ //success
-			audio.src = mediaStream;
-			mic = acontext.createMediaStreamSource(mediaStream);
-			micon = true;
-			console.log("The microphone turned on.");
+	function(stream){ //success
+		mediaStream = stream;
+		audio.mic = new Audio();
+		audio.mic.src = mediaStream;
+		source.mic = acontext.createMediaStreamSource(mediaStream);
+		source.mic.connect(acontext.destination);
+		console.log("The microphone turned on.");
+		micon = true;
 		}, //error
 		function(err){
 			alert("Error accessing the microphone.");
@@ -85,43 +90,57 @@ function usingMic(){
 
 //sound effect
 function loadAudio(filename, data, options){
-	var effectaudio = new Audio();
-	effectaudio.src =  filename;
-	var framesec=0.02;
-	//var promise = Promise.resolve();
+	//audio.soundeffect = new Audio(filename);
+	audio.soundeffect = new Audio();
+	audio.soundeffect.src = filename;
 	
+	source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
+	//source.soundeffect = acontext.createBufferSource(audio.soundeffect);
+	options.source = source.soundeffect;
+	
+	var framesec=0.1;
+	var repeatTimer;
+	var features;
 	console.log("Please wait until calculation of spectrogram is over.");
+	//audio["soundeffect"].muted = true; //mute
+	audio["soundeffect"].play();
 	
-	effectaudio.addEventListener('loadstart', function() { 
-		options["source"] = acontext.createMediaElementSource(effectaudio);
-		var meyda = Meyda.createMeydaAnalyzer(options);
-		meyda.start(options["featureExtractors"][0]);
-		setInterval(function(){
-			data.push(features); //ここで失敗する
-			meyda.stop();
+	var meyda = Meyda.createMeydaAnalyzer(options);
+	meyda.start(options.featureExtractors[0]);
+	
+	audio["soundeffect"].addEventListener('loadstart', function() { //読み込み
+		repeatTimer = setInterval(function(){
+			features = meyda.get(options.featureExtractors[0]);
+			if (features!=null) data.push(features);
 		},1000*framesec)
-		return data;
-	})
-
+	});
+	
+	audio["soundeffect"].addEventListener('ended', function(){ //終了時
+		meyda.stop();
+		clearInterval(repeatTimer);
+	});
 }
 
 //for dtw
 function costCalculation(effectdata, options, duration, callback) {
 	var data=[];
-	var framesec=0.02;
+	var framesec=0.05;
 	
 	if (duration<options["bufferSize"]/acontext.sampleRate){
 		throw new Error("bufferSize should be smaller than duration.");
 	}
-
-	options["source"] = mic;
+	
+	audio["mic"].play();
+	console.log(source.mic);	
+	options.source = source.mic;
+	
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
-	meyda.start(options["featureExtractors"][0]);
 	
 	setInterval(function(){
-		data.push(features);
-		meyda.stop();
+		var features = meyda.get(options["featureExtractors"][0]);
+		if (features!=null) data.push();
+		//console.log(data);
 	},1000*framesec)
 	
 	setInterval(function(){
@@ -139,4 +158,7 @@ function specNormalization(freq, bufSize){
 	}
 	return freq;
 }
+
+//lowpassfilter
+
 module.exports = Pico;
