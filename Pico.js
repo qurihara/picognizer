@@ -1,6 +1,5 @@
 var DTW = require("./lib/dtw");
 require("./constants.js");
-require("./bufferLoader.js");
 
 var dtw = new DTW();
 var cost;
