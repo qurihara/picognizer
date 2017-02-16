@@ -717,47 +717,44 @@ function plural(ms, n, name) {
 },{}],5:[function(require,module,exports){
 var DTW = require("./lib/dtw");
 require("./constants.js");
-require("./bufferLoader.js");
 
 var dtw = new DTW();
 var cost;
 var audio = {};
 var source = {};
 var acontext= new AudioContext();
-var micon = false;
+
 var mediaStream;
 
 var Pico = function(){
-	var duration = 1.0; //seconds
 	
 	var options = {
 		"audioContext": acontext, // required
 		"source": null, // required
-		"bufferSize": 4096, // required
-		"windowingFunction": "hamming",
-		"featureExtractors": ["powerSpectrum"]
+		"bufferSize": null, // required
+		"windowingFunction": null,
+		"featureExtractors": []
 	};
-	
-	this.init = function(){
-		for (var i = 0; i < arguments.length; i++) {
-			var tmp = arguments[i];
-			console.log(tmp);
-		}
+	var micon = false;
+
+	this.init = function(...args){
+		if (args.length < 1) {console.log("Default parameter (bufferSize: 2048, featureExtractors: powerSpectrum)");}
+		if (arguments.bufferSize === undefined) options.bufferSize = 2048;
+		if (arguments.windowingFunction === undefined) options.windowingFunction = "hamming";
+		if (arguments.featureExtractors === undefined) options.featureExtractors = ["powerSpectrum"];
 	}
 
 	this.recognized =  function(audiofile, callback){
 		
 		var effectdata = [];
+		var duration = 0.5; //seconds
 		//var repeatTimer;
 		loadAudio(audiofile, effectdata, options);
 		
 		if (micon == false){
-			usingMic();
+			usingMic(effectdata, options, duration, callback);
 		}
-		audio["mic"].addEventListener('loadstart', function(){
-			costCalculation(effectdata, options, duration, callback);
-		})
-		 
+
 		//p.then(function(){ //読み込まれるまで待つ
 		//console.log(effectdata);
 		//audio["mic"].addEventListener('loadstart', function() { 
@@ -784,7 +781,7 @@ function getParams(func) {
 }
 
 //microphone
-function usingMic(){
+function usingMic(effectdata, options, duration, callback){
 	console.log("using mic");
 	if (!navigator.getUserMedia){
     	alert('getUserMedia is not supported.');
@@ -798,6 +795,11 @@ function usingMic(){
 		source.mic.connect(acontext.destination);
 		console.log("The microphone turned on.");
 		micon = true;
+		
+		audio.mic.addEventListener('loadstart', function(){
+			costCalculation(effectdata, options, duration, callback);
+		})
+		
 		}, //error
 		function(err){
 			alert("Error accessing the microphone.");
@@ -807,32 +809,30 @@ function usingMic(){
 
 //sound effect
 function loadAudio(filename, data, options){
-	//audio.soundeffect = new Audio(filename);
 	audio.soundeffect = new Audio();
 	audio.soundeffect.src = filename;
 	
 	source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
-	//source.soundeffect = acontext.createBufferSource(audio.soundeffect);
 	options.source = source.soundeffect;
 	
-	var framesec=0.1;
+	var framesec=0.05;
 	var repeatTimer;
 	var features;
 	console.log("Please wait until calculation of spectrogram is over.");
 	//audio["soundeffect"].muted = true; //mute
-	audio["soundeffect"].play();
+	audio.soundeffect.play();
 	
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	meyda.start(options.featureExtractors[0]);
 	
-	audio["soundeffect"].addEventListener('loadstart', function() { //読み込み
+	audio.soundeffect.addEventListener('loadstart', function() {
 		repeatTimer = setInterval(function(){
 			features = meyda.get(options.featureExtractors[0]);
 			if (features!=null) data.push(features);
 		},1000*framesec)
 	});
 	
-	audio["soundeffect"].addEventListener('ended', function(){ //終了時
+	audio.soundeffect.addEventListener('ended', function(){ 
 		meyda.stop();
 		clearInterval(repeatTimer);
 	});
@@ -843,25 +843,25 @@ function costCalculation(effectdata, options, duration, callback) {
 	var data=[];
 	var framesec=0.05;
 	
-	if (duration<options["bufferSize"]/acontext.sampleRate){
+	if (duration<options.bufferSize/acontext.sampleRate){
 		throw new Error("bufferSize should be smaller than duration.");
 	}
 	
-	audio["mic"].play();
-	console.log(source.mic);	
+	audio.mic.play();
 	options.source = source.mic;
 	
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
+	meyda.start(options.featureExtractors);
 	
 	setInterval(function(){
-		var features = meyda.get(options["featureExtractors"][0]);
-		if (features!=null) data.push();
+		var features = meyda.get(options.featureExtractors[0]);
+		if (features!=null) data.push(features);
 		//console.log(data);
 	},1000*framesec)
 	
+	//cost算出
 	setInterval(function(){
-		//costの計算
 		cost = dtw.compute(data, effectdata);
 		if (callback != null) callback(cost);
 		data = [];
@@ -880,58 +880,7 @@ function specNormalization(freq, bufSize){
 
 module.exports = Pico;
 
-},{"./bufferLoader.js":6,"./constants.js":7,"./lib/dtw":13}],6:[function(require,module,exports){
-//BufferLoader class by Boris Smus
-//http://www.html5rocks.com/en/tutorials/webaudio/intro/
-//just using it because it makes stuff faster
-
-function BufferLoader(context, urlList, callback) {
-  this.context = context;
-  this.urlList = urlList;
-  this.onload = callback;
-  this.bufferList = new Array();
-  this.loadCount = 0;
-}
-
-BufferLoader.prototype.loadBuffer = function(url, index) {
-  // Load buffer asynchronously
-  var request = new XMLHttpRequest();
-  request.open("GET", url, true);
-  request.responseType = "arraybuffer";
-
-  var loader = this;
-
-  request.onload = function() {
-    // Asynchronously decode the audio file data in request.response
-    loader.context.decodeAudioData(
-      request.response,
-      function(buffer) {
-        if (!buffer) {
-          alert('error decoding file data: ' + url);
-          return;
-        }
-        loader.bufferList[index] = buffer;
-        if (++loader.loadCount == loader.urlList.length)
-          loader.onload(loader.bufferList);
-      },
-      function(error) {
-        console.error('decodeAudioData error', error);
-      }
-    );
-  }
-
-  request.onerror = function() {
-    alert('BufferLoader: XHR error');
-  }
-
-  request.send();
-}
-
-BufferLoader.prototype.load = function() {
-  for (var i = 0; i < this.urlList.length; ++i)
-  this.loadBuffer(this.urlList[i], i);
-}
-},{}],7:[function(require,module,exports){
+},{"./constants.js":6,"./lib/dtw":12}],6:[function(require,module,exports){
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 var URL = window.URL || window.webkitURL;
@@ -946,21 +895,22 @@ var mediaC = {
   }
 };
 
-},{}],8:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var Pico = require('./Pico');
 var P = new Pico;
 
 window.onload = function () {
 
+	P.init(); //パラメータ設定 (初期化)
 	////coin
-	//P.recognized('http://jsrun.it/assets/a/k/U/T/akUT5.mp3', function(cost){
-	//	console.log("coin cost: " + cost.toFixed(2));
-	//});
-	
-	//local file
-	P.recognized('Coin.mp3', function(cost){
+	P.recognized('http://jsrun.it/assets/a/k/U/T/akUT5.mp3', function(cost){
 		console.log("coin cost: " + cost.toFixed(2));
 	});
+	
+	////local file
+	//P.recognized('Coin.mp3', function(cost){
+	//	console.log("coin cost: " + cost.toFixed(2));
+	//});
 	
 	////gainlife
 	//P.recognized('http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3', function(cost){
@@ -980,7 +930,7 @@ document.onkeydown = function (e){
 
 	}
 };
-},{"./Pico":5}],9:[function(require,module,exports){
+},{"./Pico":5}],8:[function(require,module,exports){
 var EPSILON = 2.2204460492503130808472633361816E-16;
 
 var nearlyEqual = function (i, j, epsilon) {
@@ -1002,7 +952,7 @@ module.exports = {
     EPSILON: EPSILON,
     nearlyEqual: nearlyEqual
 };
-},{}],10:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 var distance = function (x, y) {
     var squaredEuclideanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -1016,7 +966,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],11:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 var distance = function (x, y) {
     var manhattanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -1030,7 +980,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],12:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 var distance = function (x, y) {
   var squaredEuclideanDistance = 0;
   for(var i=0;i<x.length;i++){
@@ -1044,7 +994,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],13:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /**
  * @title DTW API
  * @author Elmar Langholz
@@ -1268,7 +1218,7 @@ function retrieveOptimalPath(state) {
 
 module.exports = DTW;
 
-},{"./comparison":9,"./distanceFunctions/euclidean":10,"./distanceFunctions/manhattan":11,"./distanceFunctions/squaredEuclidean":12,"./matrix":14,"./validate":15,"debug":2}],14:[function(require,module,exports){
+},{"./comparison":8,"./distanceFunctions/euclidean":9,"./distanceFunctions/manhattan":10,"./distanceFunctions/squaredEuclidean":11,"./matrix":13,"./validate":14,"debug":2}],13:[function(require,module,exports){
 var createArray = function (length, value) {
     if (typeof length !== 'number') {
         throw new TypeError('Invalid length type');
@@ -1299,7 +1249,7 @@ module.exports = {
     create: createMatrix
 };
 
-},{}],15:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 function validateSequence(sequence, sequenceParameterName) {
     if (!(sequence instanceof Array)) {
         throw new TypeError('Invalid sequence \'' + sequenceParameterName + '\' type: expected an array');
@@ -1318,4 +1268,4 @@ module.exports = {
     sequence: validateSequence
 };
 
-},{}]},{},[8]);
+},{}]},{},[7]);
