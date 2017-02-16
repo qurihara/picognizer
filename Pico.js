@@ -6,40 +6,38 @@ var cost;
 var audio = {};
 var source = {};
 var acontext= new AudioContext();
-var micon = false;
+
 var mediaStream;
 
 var Pico = function(){
-	var duration = 1.0; //seconds
 	
 	var options = {
 		"audioContext": acontext, // required
 		"source": null, // required
-		"bufferSize": 4096, // required
-		"windowingFunction": "hamming",
-		"featureExtractors": ["powerSpectrum"]
+		"bufferSize": null, // required
+		"windowingFunction": null,
+		"featureExtractors": []
 	};
-	
-	this.init = function(){
-		for (var i = 0; i < arguments.length; i++) {
-			var tmp = arguments[i];
-			console.log(tmp);
-		}
+	var micon = false;
+
+	this.init = function(...args){
+		if (args.length < 1) {console.log("Default parameter (bufferSize: 2048, featureExtractors: powerSpectrum)");}
+		if (arguments.bufferSize === undefined) options.bufferSize = 2048;
+		if (arguments.windowingFunction === undefined) options.windowingFunction = "hamming";
+		if (arguments.featureExtractors === undefined) options.featureExtractors = ["powerSpectrum"];
 	}
 
 	this.recognized =  function(audiofile, callback){
 		
 		var effectdata = [];
+		var duration = 0.5; //seconds
 		//var repeatTimer;
 		loadAudio(audiofile, effectdata, options);
 		
 		if (micon == false){
-			usingMic();
+			usingMic(effectdata, options, duration, callback);
 		}
-		audio["mic"].addEventListener('loadstart', function(){
-			costCalculation(effectdata, options, duration, callback);
-		})
-		 
+
 		//p.then(function(){ //読み込まれるまで待つ
 		//console.log(effectdata);
 		//audio["mic"].addEventListener('loadstart', function() { 
@@ -66,7 +64,7 @@ function getParams(func) {
 }
 
 //microphone
-function usingMic(){
+function usingMic(effectdata, options, duration, callback){
 	console.log("using mic");
 	if (!navigator.getUserMedia){
     	alert('getUserMedia is not supported.');
@@ -80,6 +78,11 @@ function usingMic(){
 		source.mic.connect(acontext.destination);
 		console.log("The microphone turned on.");
 		micon = true;
+		
+		audio.mic.addEventListener('loadstart', function(){
+			costCalculation(effectdata, options, duration, callback);
+		})
+		
 		}, //error
 		function(err){
 			alert("Error accessing the microphone.");
@@ -89,32 +92,30 @@ function usingMic(){
 
 //sound effect
 function loadAudio(filename, data, options){
-	//audio.soundeffect = new Audio(filename);
 	audio.soundeffect = new Audio();
 	audio.soundeffect.src = filename;
 	
 	source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
-	//source.soundeffect = acontext.createBufferSource(audio.soundeffect);
 	options.source = source.soundeffect;
 	
-	var framesec=0.1;
+	var framesec=0.05;
 	var repeatTimer;
 	var features;
 	console.log("Please wait until calculation of spectrogram is over.");
 	//audio["soundeffect"].muted = true; //mute
-	audio["soundeffect"].play();
+	audio.soundeffect.play();
 	
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	meyda.start(options.featureExtractors[0]);
 	
-	audio["soundeffect"].addEventListener('loadstart', function() { //読み込み
+	audio.soundeffect.addEventListener('loadstart', function() {
 		repeatTimer = setInterval(function(){
 			features = meyda.get(options.featureExtractors[0]);
 			if (features!=null) data.push(features);
 		},1000*framesec)
 	});
 	
-	audio["soundeffect"].addEventListener('ended', function(){ //終了時
+	audio.soundeffect.addEventListener('ended', function(){ 
 		meyda.stop();
 		clearInterval(repeatTimer);
 	});
@@ -125,25 +126,25 @@ function costCalculation(effectdata, options, duration, callback) {
 	var data=[];
 	var framesec=0.05;
 	
-	if (duration<options["bufferSize"]/acontext.sampleRate){
+	if (duration<options.bufferSize/acontext.sampleRate){
 		throw new Error("bufferSize should be smaller than duration.");
 	}
 	
-	audio["mic"].play();
-	console.log(source.mic);	
+	audio.mic.play();
 	options.source = source.mic;
 	
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
+	meyda.start(options.featureExtractors);
 	
 	setInterval(function(){
-		var features = meyda.get(options["featureExtractors"][0]);
-		if (features!=null) data.push();
+		var features = meyda.get(options.featureExtractors[0]);
+		if (features!=null) data.push(features);
 		//console.log(data);
 	},1000*framesec)
 	
+	//cost算出
 	setInterval(function(){
-		//costの計算
 		cost = dtw.compute(data, effectdata);
 		if (callback != null) callback(cost);
 		data = [];
