@@ -10,8 +10,9 @@ var acontext= new AudioContext();
 
 var mediaStream;
 
+var c;
 var Pico = function(){
-	
+
 	var options = {
 		"audioContext": acontext, // required
 		"source": null, // required
@@ -29,7 +30,7 @@ var Pico = function(){
 	}
 
 	this.recognized =  function(audiofile, callback){
-		
+
 		var duration = 0.5; //seconds
 		var audionum;
 		//var data = [];
@@ -41,37 +42,22 @@ var Pico = function(){
 		else {
 			audionum = audiofile.length;
 		}
-		var c = new Code();
+		c = new Code();
 
 		// mic
-		var f1 = function func1(){
-			if (micon == false){
-				usingMic();
+		if (micon == false){
+			usingMic();
+		}
+
+		loadAudio(audiofile, effectdata, options, function(){ // callbackを想定
+			var f3 = function func3(){
+				//マイクのローディングを待ってほしいのに->ボタンだったらあり？
+				costCalculation(effectdata, options, duration, callback);
+				return true;
 			}
-			return true;
-		}
+			c.addfunc(f3);
+		};
 
-		var f2 = function func2(){
-			//for (var n=0; n<audionum; n++)
-			//	data = [];
-				loadAudio(audiofile, effectdata, options);
-			//	effectdata[n] = data;
-			//console.log(effectdata);
-			return true;
-		}
-		
-		var f3 = function func3(){
-			//マイクのローディングを待ってほしいのに->ボタンだったらあり？
-			costCalculation(effectdata, options, duration, callback);
-			return true;
-		}
-		
-		c.addfunc(f1);
-		c.addfunc(f2);
-		c.addfunc(f3);
-
-		c.execfuncs();
-		 
 		return;
 	}
 
@@ -106,6 +92,7 @@ function usingMic(){
 		source.mic.connect(acontext.destination);
 		console.log("The microphone turned on.");
 		micon = true;
+		c.execfuncs();
 		}, //error
 		function(err){
 			alert("Error accessing the microphone.");
@@ -114,57 +101,60 @@ function usingMic(){
 }
 
 //sound effect
-function loadAudio(filename, data, options){
+function loadAudio(filename, data, options,callback){
 	audio.soundeffect = new Audio();
 	audio.soundeffect.src = filename;
 	audio.soundeffect.crossOrigin = "anonymous";
 	source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
 	options.source = source.soundeffect;
-	
+
 	var framesec=0.05;
 	var repeatTimer;
 	var features;
 	var featurename = options.featureExtractors[0];
 	console.log("Please wait until calculation of spectrogram is over.");
 	audio.soundeffect.play();
-	
+
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	meyda.start(featurename);
-	
+
 	audio.soundeffect.addEventListener('loadstart', function() {
 		repeatTimer = setInterval(function(){
 			features = meyda.get(featurename);
 			if (features!=null) data.push(features);
 		},1000*framesec)
 	});
-	
-	audio.soundeffect.addEventListener('ended', function(){ 
+
+	audio.soundeffect.addEventListener('ended', function(){
 		meyda.stop();
 		clearInterval(repeatTimer);
 	});
+
+	// do callback
+	callback();
 }
 
 //for dtw
 function costCalculation(effectdata, options, duration, callback) {
 	var data=[];
 	var framesec=0.05;
-	
+
 	if (duration<options.bufferSize/acontext.sampleRate){
 		throw new Error("bufferSize should be smaller than duration.");
 	}
-	
+
 	audio.mic.play();
 	options.source = source.mic;
-	
+
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
 	meyda.start(options.featureExtractors);
-	
+
 	setInterval(function(){
 		var features = meyda.get(options.featureExtractors[0]);
 		if (features!=null) data.push(features);
 	},1000*framesec)
-	
+
 	//cost算出
 	setInterval(function(){
 		cost = dtw.compute(data, effectdata);
