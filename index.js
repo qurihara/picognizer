@@ -5,14 +5,18 @@ window.onload = function () {
 
 	P.init(); //パラメータ設定 (初期化)
 	////coin
-	P.recognized('http://jsrun.it/assets/a/k/U/T/akUT5.mp3', function(cost){
-		console.log("coin cost: " + cost.toFixed(2));
-	});
+	
+	//ファイル名の配列を用意
+	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/a/k/U/T/akUT5.mp3'];	
+	
+	//P.recognized(audiofile, function(cost){
+	//	console.log("cost: " + cost.toFixed(2));
+	//});
 	
 	////local file
-	//P.recognized('Coin.mp3', function(cost){
-	//	console.log("coin cost: " + cost.toFixed(2));
-	//});
+	P.recognized('Coin.mp3', function(cost){
+		console.log("coin cost: " + cost.toFixed(2));
+	});
 	
 	////gainlife
 	//P.recognized('http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3', function(cost){

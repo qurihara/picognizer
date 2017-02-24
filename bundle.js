@@ -716,6 +716,7 @@ function plural(ms, n, name) {
 
 },{}],5:[function(require,module,exports){
 var DTW = require("./lib/dtw");
+var Code = require("./code.js");
 require("./constants.js");
 
 var dtw = new DTW();
@@ -746,21 +747,48 @@ var Pico = function(){
 
 	this.recognized =  function(audiofile, callback){
 		
-		var effectdata = [];
 		var duration = 0.5; //seconds
-		//var repeatTimer;
-		loadAudio(audiofile, effectdata, options);
-		
-		if (micon == false){
-			usingMic(effectdata, options, duration, callback);
+		var audionum;
+		var data = [];
+		var effectdata = {};
+		//複数を判定
+		if(!(audiofile instanceof Array)){
+			audionum = 1;
+		}
+		else {
+			audionum = audiofile.length;
+		}
+		var c = new Code();
+
+		// mic
+		var f1 = function func1(){
+			if (micon == false){
+				usingMic();
+			}
+			return true;
 		}
 
-		//p.then(function(){ //読み込まれるまで待つ
-		//console.log(effectdata);
-		//audio["mic"].addEventListener('loadstart', function() { 
-		//	costCalculation(effectdata, options, duration, callback);
-		//})
-		//});
+		var f2 = function func2(){
+			//for (var n=0; n<audionum; n++)
+			//	data = [];
+				loadAudio(audiofile, effectdata, options);
+			//	effectdata[n] = data;
+			//console.log(effectdata);
+			return true;
+		}
+		
+		var f3 = function func3(){
+			//マイクのローディングを待ってほしいのに
+			costCalculation(effectdata, options, duration, callback);
+			return true;
+		}
+		
+		c.addfunc(f1);
+		c.addfunc(f2);
+		c.addfunc(f3);
+
+		c.execfuncs();
+		 
 		return;
 	}
 
@@ -781,7 +809,7 @@ function getParams(func) {
 }
 
 //microphone
-function usingMic(effectdata, options, duration, callback){
+function usingMic(){
 	console.log("using mic");
 	if (!navigator.getUserMedia){
     	alert('getUserMedia is not supported.');
@@ -795,11 +823,6 @@ function usingMic(effectdata, options, duration, callback){
 		source.mic.connect(acontext.destination);
 		console.log("The microphone turned on.");
 		micon = true;
-		
-		audio.mic.addEventListener('loadstart', function(){
-			costCalculation(effectdata, options, duration, callback);
-		})
-		
 		}, //error
 		function(err){
 			alert("Error accessing the microphone.");
@@ -811,23 +834,23 @@ function usingMic(effectdata, options, duration, callback){
 function loadAudio(filename, data, options){
 	audio.soundeffect = new Audio();
 	audio.soundeffect.src = filename;
-	
+	audio.soundeffect.crossOrigin = "anonymous";
 	source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
 	options.source = source.soundeffect;
 	
 	var framesec=0.05;
 	var repeatTimer;
 	var features;
+	var featurename = options.featureExtractors[0];
 	console.log("Please wait until calculation of spectrogram is over.");
-	//audio["soundeffect"].muted = true; //mute
 	audio.soundeffect.play();
 	
 	var meyda = Meyda.createMeydaAnalyzer(options);
-	meyda.start(options.featureExtractors[0]);
+	meyda.start(featurename);
 	
 	audio.soundeffect.addEventListener('loadstart', function() {
 		repeatTimer = setInterval(function(){
-			features = meyda.get(options.featureExtractors[0]);
+			features = meyda.get(featurename);
 			if (features!=null) data.push(features);
 		},1000*framesec)
 	});
@@ -857,7 +880,6 @@ function costCalculation(effectdata, options, duration, callback) {
 	setInterval(function(){
 		var features = meyda.get(options.featureExtractors[0]);
 		if (features!=null) data.push(features);
-		//console.log(data);
 	},1000*framesec)
 	
 	//cost算出
@@ -868,19 +890,106 @@ function costCalculation(effectdata, options, duration, callback) {
 	},1000*duration)
 }
 
-function specNormalization(freq, bufSize){
+function specNormalization(freq, options){
 	var maxval = Math.max.apply([], freq);
-	for (n=0; n<bufSize; n++){
+	for (n=0; n<options.bufferSize; n++){
 		freq[n] = freq[n]/maxval;
 	}
 	return freq;
 }
 
-//lowpassfilter
-
 module.exports = Pico;
 
-},{"./constants.js":6,"./lib/dtw":12}],6:[function(require,module,exports){
+},{"./code.js":6,"./constants.js":7,"./lib/dtw":13}],6:[function(require,module,exports){
+var Code = function () {
+  var funcs = {};
+
+  this.execfuncs = function(){
+    for (var key in funcs) {
+      console.log("executing " + key);
+      var do_again = false;
+      try{
+        do_again = funcs[key]();
+      }
+      catch(e){
+        console.log("execfuncs error. deleting this function: " + e);
+      }
+      if (do_again === false){
+        this.delfunc(key);
+      }
+    }
+  }
+
+  this.addfunc_by_str = function(str){
+    try{
+      eval(str);
+      this.addfunc(func);
+    }
+    catch(e){
+      console.log("addfunc_by_str error: " + e);
+    }
+  }
+
+  this.addfunc = function(f){
+    try{
+      funcs[f.name] = f;
+    }
+    catch(e){
+      console.log("addfunc error: " + e);
+    }
+  }
+
+  this.delfunc = function(f_name){
+    try{
+      delete funcs[f_name];
+    }
+    catch(e){
+      console.log("dellfunc error: " + e);
+    }
+  }
+
+  this.listcode = function(){
+    for (var key in funcs) {
+      console.log(key);
+    }
+  }
+}
+
+module.exports = Code;
+
+// test
+
+// var m = "code:\nvar a = 1;<eof>".match(/^code:([\s\S]*)<eof>/);
+// console.log(m[0]);
+// console.log(m[1]);
+
+// 
+// var f1 = function func1(){
+//   console.log("hello");
+//   return true;
+// }
+//
+// var f2 = function func2(){
+//   console.log("world");
+//   return false;
+// }
+//
+// var str = 'var func = function func3(){console.log("eval");return false;}';
+// var str2 = 'var func = function func4(){console.log("eval2");return truse;}';
+//
+// var c = new Code();
+// c.addfunc(f1);
+// c.addfunc(f2);
+// c.addfunc_by_str(str);
+// c.addfunc_by_str(str2);
+// c.listcode();
+// console.log("[frist trial]");
+// c.execfuncs();
+// c.listcode();
+// console.log("[second trial]");
+// c.execfuncs();
+
+},{}],7:[function(require,module,exports){
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 var URL = window.URL || window.webkitURL;
@@ -895,7 +1004,7 @@ var mediaC = {
   }
 };
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 var Pico = require('./Pico');
 var P = new Pico;
 
@@ -903,14 +1012,18 @@ window.onload = function () {
 
 	P.init(); //パラメータ設定 (初期化)
 	////coin
-	P.recognized('http://jsrun.it/assets/a/k/U/T/akUT5.mp3', function(cost){
-		console.log("coin cost: " + cost.toFixed(2));
-	});
+	
+	//ファイル名の配列を用意
+	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/a/k/U/T/akUT5.mp3'];	
+	
+	//P.recognized(audiofile, function(cost){
+	//	console.log("cost: " + cost.toFixed(2));
+	//});
 	
 	////local file
-	//P.recognized('Coin.mp3', function(cost){
-	//	console.log("coin cost: " + cost.toFixed(2));
-	//});
+	P.recognized('Coin.mp3', function(cost){
+		console.log("coin cost: " + cost.toFixed(2));
+	});
 	
 	////gainlife
 	//P.recognized('http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3', function(cost){
@@ -930,7 +1043,7 @@ document.onkeydown = function (e){
 
 	}
 };
-},{"./Pico":5}],8:[function(require,module,exports){
+},{"./Pico":5}],9:[function(require,module,exports){
 var EPSILON = 2.2204460492503130808472633361816E-16;
 
 var nearlyEqual = function (i, j, epsilon) {
@@ -952,7 +1065,7 @@ module.exports = {
     EPSILON: EPSILON,
     nearlyEqual: nearlyEqual
 };
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 var distance = function (x, y) {
     var squaredEuclideanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -966,7 +1079,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 var distance = function (x, y) {
     var manhattanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -980,7 +1093,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 var distance = function (x, y) {
   var squaredEuclideanDistance = 0;
   for(var i=0;i<x.length;i++){
@@ -994,7 +1107,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /**
  * @title DTW API
  * @author Elmar Langholz
@@ -1218,7 +1331,7 @@ function retrieveOptimalPath(state) {
 
 module.exports = DTW;
 
-},{"./comparison":8,"./distanceFunctions/euclidean":9,"./distanceFunctions/manhattan":10,"./distanceFunctions/squaredEuclidean":11,"./matrix":13,"./validate":14,"debug":2}],13:[function(require,module,exports){
+},{"./comparison":9,"./distanceFunctions/euclidean":10,"./distanceFunctions/manhattan":11,"./distanceFunctions/squaredEuclidean":12,"./matrix":14,"./validate":15,"debug":2}],14:[function(require,module,exports){
 var createArray = function (length, value) {
     if (typeof length !== 'number') {
         throw new TypeError('Invalid length type');
@@ -1249,7 +1362,7 @@ module.exports = {
     create: createMatrix
 };
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 function validateSequence(sequence, sequenceParameterName) {
     if (!(sequence instanceof Array)) {
         throw new TypeError('Invalid sequence \'' + sequenceParameterName + '\' type: expected an array');
@@ -1268,4 +1381,4 @@ module.exports = {
     sequence: validateSequence
 };
 
-},{}]},{},[7]);
+},{}]},{},[8]);
