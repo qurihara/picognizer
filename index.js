@@ -4,24 +4,31 @@ var P = new Pico;
 window.onload = function () {
 
 	P.init(); //パラメータ設定 (初期化)
-	////coin
+
+	/*
+	//check ローカル1音: OK
+	P.recognized('1up.mp3', function(cost){
+		console.log("gainlife cost: " + cost.toFixed(2));
+	});
+	*/
 	
-	//ファイル名の配列を用意
-	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/a/k/U/T/akUT5.mp3'];	
 	
-	//P.recognized(audiofile, function(cost){
-	//	console.log("cost: " + cost.toFixed(2));
-	//});
-	
-	////local file
-	P.recognized('Coin.mp3', function(cost){
-		console.log("coin cost: " + cost.toFixed(2));
+	//check ローカル2音: OK
+	var audiofile = ['Coin.mp3', '1up.mp3'];
+	P.recognized(audiofile, function(cost){
+		console.log("coin cost: " + cost[0].toFixed(2));
+		console.log("gainlife cost: " + cost[1].toFixed(2));
 	});
 	
-	////gainlife
+	
+	
+	//check web 1音: 
 	//P.recognized('http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3', function(cost){
 	//	console.log("gainlife cost: " + cost.toFixed(2));
 	//});
+	
+	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
+	
 };
 
 document.onkeydown = function (e){
