@@ -5,18 +5,23 @@ var cri = 20;
 var offset = 0.01;
 var latest_cost = 0;
 
+function set_cri(val){
+	document.getElementById("val").innerHTML = val;
+	cri = val;
+	log("cri: " + cri);
+}
+function set_cri_w_bar(val){
+	document.getElementById("bar_cri").value = val;
+	set_cri(val);
+}
+
 window.onload = function () {
 
 	document.getElementById("bar_cri").onchange = function(){
-		document.getElementById("val").innerHTML = this.value;
-		cri = this.value;
-		log("cri: " + cri);
+		set_cri(this.value);
 	};
 	document.getElementById("set_button").onclick = function(){
-		cri = (latest_cost - offset).toFixed(2);
-		document.getElementById("val").innerHTML = cri;
-		document.getElementById("bar_cri").value = cri;
-		log("cri:" + cri);
+		set_cri_w_bar((latest_cost - offset).toFixed(2));
 	};
 	document.getElementById("coin_button").onclick =	function(){
 		new Audio('Coin.mp3').play();
@@ -28,12 +33,12 @@ window.onload = function () {
 		new Audio('field.mp3').play();
 	};
 
-	document.getElementById("load_coin_button").onclick = function(){
-		//local file
-		log("loading : Coin.mp3");
-		P.recognized('Coin.mp3', onrecog);
-		log("start recognition");
-	};
+	// document.getElementById("load_coin_button").onclick = function(){
+	// 	//local file
+	// 	log("loading : Coin.mp3");
+	// 	P.recognized('Coin.mp3', onrecog);
+	// 	log("start recognition");
+	// };
 	document.getElementById("load_url_button").onclick = function(){
 		////load external file
 		var t = document.getElementById("text_url").value;
@@ -84,17 +89,19 @@ function init_chart(){
 //
 function onrecog(cost){
 	var t = ((new Date()).getTime() / 1000)|0;
-	var c = cost.toFixed(2)
+	var c = cost.toFixed(2);
+	var cc = c;
+	if (cc>100) cc = 100;
 	log("coin cost: " + c);
 	chart.push([
-		{time: t, y: c},
+		{time: t, y: cc},
 		{time: t, y: cri}
 	]);
-	if (cost.toFixed(2) < cri){
+	if (c < cri){
 		log("recognized.");
 		send();
 	}
-	latest_cost = cost.toFixed(2);
+	latest_cost = c;
 }
 
 function log(msg){
@@ -157,6 +164,15 @@ function conn_init(){
 	// 		console.log('UUID AUTHENTICATED!');
 	// 		console.log(data);
 	// 	});
+	}
+
+	var cr = Number(para["cri"]);
+	if (isFinite(cr)){
+		set_cri_w_bar(cr);
+	}
+	var src_url = para["src"];
+	if (src_url !== null){
+		document.getElementById("text_url").value = src_url;
 	}
 }
 
