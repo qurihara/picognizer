@@ -14,18 +14,17 @@ window.onload = function () {
 	
 	
 	//check ローカル2音: OK
-	var audiofile = ['Coin.mp3', '1up.mp3'];
+	/*var audiofile = ['Coin.mp3', '1up.mp3'];
 	P.recognized(audiofile, function(cost){
 		console.log("coin cost: " + cost[0].toFixed(2));
 		console.log("gainlife cost: " + cost[1].toFixed(2));
 	});
-	
-	
+	*/
 	
 	//check web 1音: 
-	//P.recognized('http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3', function(cost){
-	//	console.log("gainlife cost: " + cost.toFixed(2));
-	//});
+	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
+		console.log("coin cost: " + cost.toFixed(2));
+	});
 	
 	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
 	

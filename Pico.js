@@ -3,7 +3,6 @@ var Code = require("./code.js");
 require("./constants.js");
 
 var dtw = new DTW();
-//var cost;
 var audio = {};
 var source = {};
 var acontext= new AudioContext();
@@ -26,7 +25,7 @@ var Pico = function(){
 
 	this.init = function(...args){
 		if (args.length < 1) {console.log("Default parameter (bufferSize: 2048, featureExtractors: powerSpectrum)");}
-		if (arguments.bufferSize === undefined) options.bufferSize = Math.pow(2,10);
+		if (arguments.bufferSize === undefined) options.bufferSize = Math.pow(2,11);
 		else options.bufferSize = arguments.bufferSize;
 		if (arguments.windowingFunction === undefined) options.windowingFunction = "hamming";
 		else options.windowingFunction = arguments.windowingFunction
@@ -57,8 +56,6 @@ var Pico = function(){
 			}
 		}
 		
-		console.log(effectdata);
-		
 		//mic
 		if (micstate.micon == false){
 			usingMic(micstate);
@@ -69,7 +66,6 @@ var Pico = function(){
 			return true;
 		}
 		c.addfunc(f3);
-
 		return;
 	}
 
@@ -80,16 +76,6 @@ var Pico = function(){
 		return;
 	}
 };
-
-/*
-function getParams(func) {
-	var source = func.toString().replace(/\/\/.*$|\/\*[\s\S]*?\*\/|\s/gm, ''); // strip comments
-	var params = source.match(/\((.*?)\)/)[1].split(',');
-	if (params.length === 1 && params[0] === '')
-    	return [];
-	return params;
-}
-*/
 
 //microphone
 function usingMic(micstate){
@@ -143,7 +129,7 @@ function loadAudio(filename, data, options){
 			var features = meyda.get(featurename);
 			if (features!=null){
 				if (checkspec==true) features = specNormalization(features, options);
-				//features = features.slice(0, parseInt(options.bufferSize/3));///1/3を取り出す
+				features = features.slice(0, parseInt(options.bufferSize/3));///1/3を取り出す
 				data.push(features);
 			}
 			//if 
@@ -159,8 +145,9 @@ function loadAudio(filename, data, options){
 
 //for dtw
 function costCalculation(effectdata, options, duration, callback) {
-	var data=[];
-	var framesec=0.05;
+	var framesec = 0.05;
+	var RingBufferSize;
+	var maxnum;
 
 	if (duration<options.bufferSize/acontext.sampleRate){
 		throw new Error("bufferSize should be smaller than duration.");
@@ -171,35 +158,75 @@ function costCalculation(effectdata, options, duration, callback) {
 	var checkspec = checkSpectrum(options);
 	var effectlen = Object.keys(effectdata).length;
 
+	maxnum = effectdata[0].length;
+	if (effectlen > 1){
+		for (var keyString in effectdata) {
+			if (maxnum < effectdata[keyString].length)
+			maxnum = effectdata[keyString].length;
+		}
+	}
+	RingBufferSize = parseInt(maxnum*1.5);
+	
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
 	meyda.start(options.featureExtractors);
 	
-	
+	//buffer
+	var buff = new RingBuffer(RingBufferSize);
 
 	setInterval(function(){
 		var features = meyda.get(options.featureExtractors[0]);
 		if (checkspec==true) features = specNormalization(features, options);
-		//features = features.slice(0, parseInt(options.bufferSize/3));//1/3を取り出す
-		if (features!=null) data.push(features);
+		features = features.slice(0, parseInt(options.bufferSize/3));//1/3を取り出す
+		if (features != null) buff.add(features);
 	},1000*framesec)
 
-	//cost算出
+	//cost
 	setInterval(function(){
-		if (effectlen==1){
-			var cost = dtw.compute(data, effectdata[0]);
+		var buflen = buff.getCount();
+		if ( buflen < RingBufferSize){
+			console.log('Now buffering');
 		}
 		else{
-			var cost=[];
-			for (var keyString in effectdata) {
-				var tmp = dtw.compute(data, effectdata[keyString]);
-				cost.push(tmp);
-			} 
+			if (effectlen==1){
+				var cost = dtw.compute(buff.buffer, effectdata[0]);
+			}
+			else{
+				var cost=[];
+				for (var keyString in effectdata) {
+					var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
+					cost.push(tmp);
+				} 
+			}
+			if (callback != null) callback(cost);
 		}
-		if (callback != null) callback(cost);
-		data = []; //ここかも？
 	},1000*duration)
 }
+
+var RingBuffer = function(bufferCount){
+		if (bufferCount === undefined) bufferCount = 0;
+        this.buffer = new Array(bufferCount);
+        this.count = 0;
+    };
+
+RingBuffer.prototype = {
+	add: function(data){
+		var lastIndex = (this.count % this.buffer.length);
+			this.buffer[lastIndex] = data;
+			this.count++;
+			return (this.count <= this.buffer.length ? 0 : 1);
+		},
+
+	get: function(index){
+		if (this.buffer.length < this.count)
+			index += this.count;
+			index %= this.buffer.length;
+			return   this.buffer[index];
+	},
+    getCount: function(){
+		return Math.min(this.buffer.length, this.count);
+	}
+};
 
 function specNormalization(freq, options){
 	var maxval = Math.max.apply([], freq);
