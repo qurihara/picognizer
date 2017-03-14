@@ -2,7 +2,18 @@ var DTW = require("./lib/dtw");
 var Code = require("./code.js");
 require("./constants.js");
 
-var dtw = new DTW();
+var options = {};
+options.distanceFunction = function(x,y){
+      var squaredEuclideanDistance = 0;
+      for(var i=0;i<x.length;i++){
+        var x2 = Math.min(x[i],y[i]);
+        var difference = x2 - y[i];
+        squaredEuclideanDistance += difference*difference;
+      }
+      return Math.sqrt(squaredEuclideanDistance);
+  };
+
+var dtw = new DTW(options);
 var audio = {};
 var source = {};
 var acontext= new AudioContext();

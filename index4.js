@@ -44,6 +44,7 @@ window.onload = function () {
 		var t = document.getElementById("text_url").value;
 		log("loading :" + t);
 		if (t !== null){
+			document.getElementById("load_url_button").disabled = true;
 			P.recognized(t,onrecog);
 			log("start recognition");
 		}
