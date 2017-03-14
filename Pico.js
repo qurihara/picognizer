@@ -19,7 +19,7 @@ var Pico = function(){
 		"featureExtractors": []
 	};
 	var micstate = {
-		"micon":false, 
+		"micon":false,
 		"output":false
 	};
 
@@ -55,12 +55,12 @@ var Pico = function(){
 				effectdata[key] = data;
 			}
 		}
-		
+
 		//mic
 		if (micstate.micon == false){
 			usingMic(micstate);
 		}
-		
+
 		var f3 = function func3(){
 			costCalculation(effectdata, options, duration, callback);
 			return true;
@@ -93,7 +93,7 @@ function usingMic(micstate){
 		if (micstate.output== true) source.mic.connect(acontext.destination);
 		micstate.micon = true;
 		c.execfuncs();
-		}, 
+		},
 		function(err){//error
 			alert("Error accessing the microphone.");
 		}
@@ -112,18 +112,18 @@ function loadAudio(filename, data, options){
 	audio.soundeffect.crossOrigin = "anonymous";
 	source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
 	options.source = source.soundeffect;
-	
+
 	var framesec=0.05;
 	var repeatTimer;
 	var featurename = options.featureExtractors[0];
 	console.log("Please wait until calculation of spectrogram is over.");
-	
+
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	audio.soundeffect.play();
 	meyda.start(featurename);
-	
+
 	var checkspec = checkSpectrum(options);
-	
+
 	audio.soundeffect.addEventListener('playing', function() {
 		repeatTimer = setInterval(function(){
 			var features = meyda.get(featurename);
@@ -132,7 +132,7 @@ function loadAudio(filename, data, options){
 				features = features.slice(0, parseInt(options.bufferSize/3));///1/3を取り出す
 				data.push(features);
 			}
-			//if 
+			//if
 		},1000*framesec)
 	});
 
@@ -166,11 +166,11 @@ function costCalculation(effectdata, options, duration, callback) {
 		}
 	}
 	RingBufferSize = parseInt(maxnum*1.5);
-	
+
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
 	meyda.start(options.featureExtractors);
-	
+
 	//buffer
 	var buff = new RingBuffer(RingBufferSize);
 
@@ -196,7 +196,7 @@ function costCalculation(effectdata, options, duration, callback) {
 				for (var keyString in effectdata) {
 					var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
 					cost.push(tmp);
-				} 
+				}
 			}
 			if (callback != null) callback(cost);
 		}
@@ -236,6 +236,9 @@ function specNormalization(freq, options){
 	else{
 		for (n=0; n<options.bufferSize; n++){
 			freq[n] = freq[n]/maxval;
+		}
+		for (n=0; n<options.bufferSize; n++){
+			if (freq[n]<0.01) freq[n]=0;
 		}
 		return freq;
 	}
