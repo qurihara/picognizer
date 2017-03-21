@@ -3,17 +3,10 @@ var Code = require("./code.js");
 require("./constants.js");
 
 var options = {};
-options.distanceFunction = function(x,y){
-      var squaredEuclideanDistance = 0;
-      for(var i=0;i<x.length;i++){
-        var x2 = Math.min(x[i],y[i]);
-        var difference = x2 - y[i];
-        squaredEuclideanDistance += difference*difference;
-      }
-      return Math.sqrt(squaredEuclideanDistance);
-  };
+options.distanceMetric = 'asymmetric';
 
 var dtw = new DTW(options);
+
 var audio = {};
 var source = {};
 var acontext= new AudioContext();
@@ -139,8 +132,10 @@ function loadAudio(filename, data, options){
 		repeatTimer = setInterval(function(){
 			var features = meyda.get(featurename);
 			if (features!=null){
-				if (checkspec==true) features = specNormalization(features, options);
-				features = features.slice(0, parseInt(options.bufferSize/3));///1/3を取り出す
+				if (checkspec==true){
+					features = specNormalization(features, options);
+					features = features.slice(0, parseInt(options.bufferSize/2));///1/2を取り出す
+				}
 				data.push(features);
 			}
 			//if
@@ -187,8 +182,10 @@ function costCalculation(effectdata, options, duration, callback) {
 
 	setInterval(function(){
 		var features = meyda.get(options.featureExtractors[0]);
-		if (checkspec==true) features = specNormalization(features, options);
-		features = features.slice(0, parseInt(options.bufferSize/3));//1/3を取り出す
+		if (checkspec==true) {
+			features = specNormalization(features, options);
+			features = features.slice(0, parseInt(options.bufferSize/2));///1/2を取り出す
+		}
 		if (features != null) buff.add(features);
 	},1000*framesec)
 
@@ -232,7 +229,7 @@ RingBuffer.prototype = {
 		if (this.buffer.length < this.count)
 			index += this.count;
 			index %= this.buffer.length;
-			return   this.buffer[index];
+			return this.buffer[index];
 	},
     getCount: function(){
 		return Math.min(this.buffer.length, this.count);
