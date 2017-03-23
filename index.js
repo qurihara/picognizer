@@ -25,7 +25,6 @@ window.onload = function () {
 	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
 		console.log("coin cost: " + cost.toFixed(2));
 	});
-	
 	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
 	
 };
