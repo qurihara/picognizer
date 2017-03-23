@@ -1,9 +1,19 @@
-var dist = require("./lib/distanceFunctions/asymmetric.js");
+var DTW = require("./lib/dtw");
 var Code = require("./code.js");
 require("./constants.js");
 
 var options = {};
+options.distanceFunction = function(x,y){
+      var squaredEuclideanDistance = 0;
+      for(var i=0;i<x.length;i++){
+        var x2 = Math.min(x[i],y[i]);
+        var difference = x2 - y[i];
+        squaredEuclideanDistance += difference*difference;
+      }
+      return Math.sqrt(squaredEuclideanDistance);
+  };
 
+var dtw = new DTW(options);
 var audio = {};
 var source = {};
 var acontext= new AudioContext();
@@ -129,10 +139,8 @@ function loadAudio(filename, data, options){
 		repeatTimer = setInterval(function(){
 			var features = meyda.get(featurename);
 			if (features!=null){
-				if (checkspec==true){
-					features = specNormalization(features, options);
-					features = features.slice(0, parseInt(options.bufferSize/2));///1/2を取り出す
-				}
+				if (checkspec==true) features = specNormalization(features, options);
+				features = features.slice(0, parseInt(options.bufferSize/3));///1/3を取り出す
 				data.push(features);
 			}
 			//if
@@ -168,21 +176,19 @@ function costCalculation(effectdata, options, duration, callback) {
 			maxnum = effectdata[keyString].length;
 		}
 	}
-	RingBufferSize = maxnum;
+	RingBufferSize = parseInt(maxnum*1.5);
 
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
 	meyda.start(options.featureExtractors);
 
 	//buffer
-	var buff = new RingBuffer(RingBufferSize); //同じ長さにする
+	var buff = new RingBuffer(RingBufferSize);
 
 	setInterval(function(){
 		var features = meyda.get(options.featureExtractors[0]);
-		if (checkspec==true) {
-			features = specNormalization(features, options);
-			features = features.slice(0, parseInt(options.bufferSize/2));///1/2を取り出す
-		}
+		if (checkspec==true) features = specNormalization(features, options);
+		features = features.slice(0, parseInt(options.bufferSize/3));//1/3を取り出す
 		if (features != null) buff.add(features);
 	},1000*framesec)
 
@@ -193,34 +199,19 @@ function costCalculation(effectdata, options, duration, callback) {
 			console.log('Now buffering');
 		}
 		else{
-			var cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
+			if (effectlen==1){
+				var cost = dtw.compute(buff.buffer, effectdata[0]);
+			}
+			else{
+				var cost=[];
+				for (var keyString in effectdata) {
+					var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
+					cost.push(tmp);
+				}
+			}
 			if (callback != null) callback(cost);
 		}
 	},1000*duration)
-}
-
-function distCalculation(effectdata, buff, effectlen, BufferSize){
-	
-	if (effectlen==1){
-		var d = 0;
-		for (var n=0; n<BufferSize; n++){
-			d = d + dist.distance(buff.get(n), effectdata[0][n]);
-		}
-		//d = d/BufferSize; //1フレーム平均
-	}
-	else{
-		var d = [];
-		for (var keyString in effectdata) {
-			L =  effectdata[keyString].length;
-			var tmp = 0;
-			for (var n=L-1; n>BufferSize - L; n--){
-				tmp = tmp + dist.distance(buff.get(n), effectdata[keyString][n]);
-			}
-			// tmp = tmp/L; //1フレーム平均
-			d.push(tmp);
-		}
-	}
-	return d;
 }
 
 var RingBuffer = function(bufferCount){
@@ -241,7 +232,7 @@ RingBuffer.prototype = {
 		if (this.buffer.length < this.count)
 			index += this.count;
 			index %= this.buffer.length;
-			return this.buffer[index];
+			return   this.buffer[index];
 	},
     getCount: function(){
 		return Math.min(this.buffer.length, this.count);

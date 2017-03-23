@@ -719,11 +719,7 @@ var DTW = require("./lib/dtw");
 var Code = require("./code.js");
 require("./constants.js");
 
-var options = {};
-options.distanceMetric = 'asymmetric';
-
-var dtw = new DTW(options);
-
+var dtw = new DTW();
 var audio = {};
 var source = {};
 var acontext= new AudioContext();
@@ -740,7 +736,7 @@ var Pico = function(){
 		"featureExtractors": []
 	};
 	var micstate = {
-		"micon":false,
+		"micon":false, 
 		"output":false
 	};
 
@@ -776,12 +772,12 @@ var Pico = function(){
 				effectdata[key] = data;
 			}
 		}
-
+		
 		//mic
 		if (micstate.micon == false){
 			usingMic(micstate);
 		}
-
+		
 		var f3 = function func3(){
 			costCalculation(effectdata, options, duration, callback);
 			return true;
@@ -814,7 +810,7 @@ function usingMic(micstate){
 		if (micstate.output== true) source.mic.connect(acontext.destination);
 		micstate.micon = true;
 		c.execfuncs();
-		},
+		}, 
 		function(err){//error
 			alert("Error accessing the microphone.");
 		}
@@ -833,29 +829,27 @@ function loadAudio(filename, data, options){
 	audio.soundeffect.crossOrigin = "anonymous";
 	source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
 	options.source = source.soundeffect;
-
+	
 	var framesec=0.05;
 	var repeatTimer;
 	var featurename = options.featureExtractors[0];
 	console.log("Please wait until calculation of spectrogram is over.");
-
+	
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	audio.soundeffect.play();
 	meyda.start(featurename);
-
+	
 	var checkspec = checkSpectrum(options);
-
+	
 	audio.soundeffect.addEventListener('playing', function() {
 		repeatTimer = setInterval(function(){
 			var features = meyda.get(featurename);
 			if (features!=null){
-				if (checkspec==true){
-					features = specNormalization(features, options);
-					features = features.slice(0, parseInt(options.bufferSize/2));///1/2を取り出す
-				}
+				if (checkspec==true) features = specNormalization(features, options);
+				features = features.slice(0, parseInt(options.bufferSize/3));///1/3を取り出す
 				data.push(features);
 			}
-			//if
+			//if 
 		},1000*framesec)
 	});
 
@@ -889,20 +883,18 @@ function costCalculation(effectdata, options, duration, callback) {
 		}
 	}
 	RingBufferSize = parseInt(maxnum*1.5);
-
+	
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
 	meyda.start(options.featureExtractors);
-
+	
 	//buffer
 	var buff = new RingBuffer(RingBufferSize);
 
 	setInterval(function(){
 		var features = meyda.get(options.featureExtractors[0]);
-		if (checkspec==true) {
-			features = specNormalization(features, options);
-			features = features.slice(0, parseInt(options.bufferSize/2));///1/2を取り出す
-		}
+		if (checkspec==true) features = specNormalization(features, options);
+		features = features.slice(0, parseInt(options.bufferSize/3));//1/3を取り出す
 		if (features != null) buff.add(features);
 	},1000*framesec)
 
@@ -921,7 +913,7 @@ function costCalculation(effectdata, options, duration, callback) {
 				for (var keyString in effectdata) {
 					var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
 					cost.push(tmp);
-				}
+				} 
 			}
 			if (callback != null) callback(cost);
 		}
@@ -946,7 +938,7 @@ RingBuffer.prototype = {
 		if (this.buffer.length < this.count)
 			index += this.count;
 			index %= this.buffer.length;
-			return this.buffer[index];
+			return   this.buffer[index];
 	},
     getCount: function(){
 		return Math.min(this.buffer.length, this.count);
@@ -962,16 +954,13 @@ function specNormalization(freq, options){
 		for (n=0; n<options.bufferSize; n++){
 			freq[n] = freq[n]/maxval;
 		}
-		for (n=0; n<options.bufferSize; n++){
-			if (freq[n]<0.01) freq[n]=0;
-		}
 		return freq;
 	}
 }
 
 module.exports = Pico;
 
-},{"./code.js":6,"./constants.js":7,"./lib/dtw":14}],6:[function(require,module,exports){
+},{"./code.js":6,"./constants.js":7,"./lib/dtw":13}],6:[function(require,module,exports){
 var Code = function () {
   var funcs = {};
 
@@ -1379,20 +1368,6 @@ module.exports = {
     nearlyEqual: nearlyEqual
 };
 },{}],10:[function(require,module,exports){
-var distance = function(x,y){
-      var squaredEuclideanDistance = 0;
-      for(var i=0;i<x.length;i++){
-        var x2 = Math.min(x[i],y[i]);
-        var difference = x2 - y[i];
-        squaredEuclideanDistance += difference*difference;
-      }
-      return Math.sqrt(squaredEuclideanDistance);
-  };
-
-module.exports = {
-    distance: distance
-};
-},{}],11:[function(require,module,exports){
 var distance = function (x, y) {
     var squaredEuclideanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -1406,7 +1381,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],12:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 var distance = function (x, y) {
     var manhattanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -1420,7 +1395,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],13:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 var distance = function (x, y) {
   var squaredEuclideanDistance = 0;
   for(var i=0;i<x.length;i++){
@@ -1434,7 +1409,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],14:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /**
  * @title DTW API
  * @author Elmar Langholz
@@ -1457,15 +1432,9 @@ function validateOptions(options) {
     if (typeof options.distanceMetric === 'string') {
         var normalizedDistanceMetric = options.distanceMetric.toLowerCase();
         if (normalizedDistanceMetric !== 'manhattan' && normalizedDistanceMetric !== 'euclidean'
-            && normalizedDistanceMetric !== 'squaredeuclidean' && normalizedDistanceMetric !== 'asymmetric') {
-            throw new Error('Invalid parameter value: Unknown distance metric \'' + options.distanceMetric + '\'');
-        }
-        /*
-        if (normalizedDistanceMetric !== 'manhattan' && normalizedDistanceMetric !== 'euclidean'
             && normalizedDistanceMetric !== 'squaredeuclidean') {
             throw new Error('Invalid parameter value: Unknown distance metric \'' + options.distanceMetric + '\'');
         }
-        */
     }
 }
 
@@ -1478,8 +1447,6 @@ function retrieveDistanceFunction(distanceMetric) {
         distanceFunction = require('./distanceFunctions/euclidean').distance;
     } else if (normalizedDistanceMetric === 'squaredeuclidean') {
         distanceFunction = require('./distanceFunctions/squaredEuclidean').distance;
-    } else if (normalizedDistanceMetric === 'asymmetric') {
-        distanceFunction = require('./distanceFunctions/asymmetric').distance;
     }
 
     return distanceFunction;
@@ -1666,7 +1633,7 @@ function retrieveOptimalPath(state) {
 
 module.exports = DTW;
 
-},{"./comparison":9,"./distanceFunctions/asymmetric":10,"./distanceFunctions/euclidean":11,"./distanceFunctions/manhattan":12,"./distanceFunctions/squaredEuclidean":13,"./matrix":15,"./validate":16,"debug":2}],15:[function(require,module,exports){
+},{"./comparison":9,"./distanceFunctions/euclidean":10,"./distanceFunctions/manhattan":11,"./distanceFunctions/squaredEuclidean":12,"./matrix":14,"./validate":15,"debug":2}],14:[function(require,module,exports){
 var createArray = function (length, value) {
     if (typeof length !== 'number') {
         throw new TypeError('Invalid length type');
@@ -1697,7 +1664,7 @@ module.exports = {
     create: createMatrix
 };
 
-},{}],16:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 function validateSequence(sequence, sequenceParameterName) {
     if (!(sequence instanceof Array)) {
         throw new TypeError('Invalid sequence \'' + sequenceParameterName + '\' type: expected an array');
