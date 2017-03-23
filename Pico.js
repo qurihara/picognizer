@@ -1,11 +1,8 @@
-var DTW = require("./lib/dtw");
+var dist = require("./lib/distanceFunctions/asymmetric.js");
 var Code = require("./code.js");
 require("./constants.js");
 
 var options = {};
-options.distanceMetric = 'asymmetric';
-
-var dtw = new DTW(options);
 
 var audio = {};
 var source = {};
@@ -171,14 +168,14 @@ function costCalculation(effectdata, options, duration, callback) {
 			maxnum = effectdata[keyString].length;
 		}
 	}
-	RingBufferSize = parseInt(maxnum*1.5);
+	RingBufferSize = maxnum;
 
 	var meyda = Meyda.createMeydaAnalyzer(options);
 	console.log("calculating cost");
 	meyda.start(options.featureExtractors);
 
 	//buffer
-	var buff = new RingBuffer(RingBufferSize);
+	var buff = new RingBuffer(RingBufferSize); //同じ長さにする
 
 	setInterval(function(){
 		var features = meyda.get(options.featureExtractors[0]);
@@ -196,19 +193,34 @@ function costCalculation(effectdata, options, duration, callback) {
 			console.log('Now buffering');
 		}
 		else{
-			if (effectlen==1){
-				var cost = dtw.compute(buff.buffer, effectdata[0]);
-			}
-			else{
-				var cost=[];
-				for (var keyString in effectdata) {
-					var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
-					cost.push(tmp);
-				}
-			}
+			var cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
 			if (callback != null) callback(cost);
 		}
 	},1000*duration)
+}
+
+function distCalculation(effectdata, buff, effectlen, BufferSize){
+	
+	if (effectlen==1){
+		var d = 0;
+		for (var n=0; n<BufferSize; n++){
+			d = d + dist.distance(buff.get(n), effectdata[0][n]);
+		}
+		//d = d/BufferSize; //1フレーム平均
+	}
+	else{
+		var d = [];
+		for (var keyString in effectdata) {
+			L =  effectdata[keyString].length;
+			var tmp = 0;
+			for (var n=L-1; n>BufferSize - L; n--){
+				tmp = tmp + dist.distance(buff.get(n), effectdata[keyString][n]);
+			}
+			// tmp = tmp/L; //1フレーム平均
+			d.push(tmp);
+		}
+	}
+	return d;
 }
 
 var RingBuffer = function(bufferCount){
