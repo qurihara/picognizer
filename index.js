@@ -3,7 +3,11 @@ var P = new Pico;
 
 window.onload = function () {
 
-	P.init({mode:direct}); //パラメータ設定 (初期化)
+	option = {
+		bufferSize:Math.pow(2, 10), //fft size
+		mode:"direct" //comparison
+	};
+	P.init(option); //パラメータ設定 (初期化)
 
 	/*
 	//check ローカル1音: OK

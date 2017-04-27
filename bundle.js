@@ -726,13 +726,12 @@ function plural(ms, n, name) {
 
 },{}],5:[function(require,module,exports){
 var DTW = require("./lib/dtw");
-//var dist = require("./lib/distanceFunctions/asymmetric.js");
+var dist = require("./lib/distanceFunctions/asymmetric.js");
 var Code = require("./code.js");
 require("./constants.js");
 
 var options = {};
-options.distanceFunction = ("./lib/distanceFunctions/asymmetric.js");
-
+options.distanceFunction = dist.distance;
 var dtw = new DTW(options);
 var audio = {};
 var source = {};
@@ -742,7 +741,7 @@ var c = new Code();
 
 var Pico = function() {
 
-    var options = {
+    options = {
         "audioContext": acontext, // required
         "source": null, // required
         "bufferSize": null, // required
@@ -754,19 +753,19 @@ var Pico = function() {
         "output": false
     };
 
-    this.init = function(...args) {
+    this.init = function(args) {
         if (args.length < 1) {
             console.log("Default parameter (bufferSize: 2048, featureExtractors: powerSpectrum)");
         }
-        if (arguments.bufferSize === undefined) options.bufferSize = Math.pow(2, 11);
-        else options.bufferSize = arguments.bufferSize;
-        if (arguments.windowingFunction === undefined) options.windowingFunction = "hamming";
-        else options.windowingFunction = arguments.windowingFunction;
-        if (arguments.featureExtractors === undefined) options.featureExtractors = ["powerSpectrum"];
-        else options.featureExtractors = arguments.featureExtractors;
-        if (arguments.mode === undefined) options.mode = "dtw";
-        else options.mode = arguments.mode;
-        if (arguments.micOutput === undefined) micstate.output = false;
+        if (args.bufferSize === undefined) options.bufferSize = Math.pow(2, 11);
+        else options.bufferSize = args.bufferSize;
+        if (args.windowingFunction === undefined) options.windowingFunction = "hamming";
+        else options.windowingFunction = args.windowingFunction;
+        if (args.featureExtractors === undefined) options.featureExtractors = ["powerSpectrum"];
+        else options.featureExtractors = args.featureExtractors;
+        if (args.mode === undefined) options.mode = "dtw";
+        else options.mode = args.mode;
+        if (args.micOutput === undefined) micstate.output = false;
     }
 
     this.recognized = function(audiofile, callback) {
@@ -866,7 +865,7 @@ function loadAudio(filename, data, options) {
             var features = meyda.get(featurename);
             if (features != null) {
                 if (checkspec == true) features = specNormalization(features, options);
-                features = features.slice(0, parseInt(options.bufferSize / 3)); ///1/3を取り出す
+                //features = features.slice(0, parseInt(options.bufferSize / 2));
                 data.push(features);
             }
             //if
@@ -912,61 +911,59 @@ function costCalculation(effectdata, options, duration, callback) {
     var buff = new RingBuffer(RingBufferSize);
     ///////DTW
     if (options.mode == "dtw") {
-        console.log("dtw!");
-        /*setInterval(function(){
-          var features = meyda.get(options.featureExtractors[0]);
-          if (checkspec==true) features = specNormalization(features, options);
-          features = features.slice(0, parseInt(options.bufferSize/3));//1/3を取り出す
-          if (features != null) buff.add(features);
-        },1000*framesec)
+        console.log("========= dtw mode =========");
+        setInterval(function() {
+            var features = meyda.get(options.featureExtractors[0]);
+            if (checkspec == true) features = specNormalization(features, options);
+            //features = features.slice(0, parseInt(options.bufferSize / 2));
+            if (features != null) buff.add(features);
+        }, 1000 * framesec)
 
         //cost
-        setInterval(function(){
-          var buflen = buff.getCount();
-          if ( buflen < RingBufferSize){
-            console.log('Now buffering');
-          }
-          else{
-            if (effectlen==1){
-              var cost = dtw.compute(buff.buffer, effectdata[0]);
+        setInterval(function() {
+            var buflen = buff.getCount();
+            if (buflen < RingBufferSize) {
+                console.log('Now buffering');
+            } else {
+                if (effectlen == 1) {
+                    var cost = dtw.compute(buff.buffer, effectdata[0]);
+                } else {
+                    var cost = [];
+                    for (var keyString in effectdata) {
+                        var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
+                        cost.push(tmp);
+                    }
+                }
+                if (callback != null) callback(cost);
             }
-            else{
-              var cost=[];
-              for (var keyString in effectdata) {
-                var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
-                cost.push(tmp);
-              }
-            }
-            if (callback != null) callback(cost);
-          }
-        },1000*duration)
-        */
+        }, 1000 * duration)
+
     }
     if (options.mode == "direct") {
-        console.log("direct!");
-        /*
-    setInterval(function(){
-      var features = meyda.get(options.featureExtractors[0]);
-      if (checkspec==true) {
-        features = specNormalization(features, options);
-        features = features.slice(0, parseInt(options.bufferSize/2));///1/2を取り出す
-      }
-      if (features != null) buff.add(features);
-      buflen = buff.getCount();
-      if ( buflen >= RingBufferSize){
-        cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
-      }
+        console.log("========= direct comparison mode =========");
 
-    },1000*framesec)
+        setInterval(function() {
+            var features = meyda.get(options.featureExtractors[0]);
+            if (checkspec == true) {
+                features = specNormalization(features, options);
+                //features = features.slice(0, parseInt(options.bufferSize / 2)); ///1/2を取り出す
+            }
+            if (features != null) buff.add(features);
+            buflen = buff.getCount();
+            if (buflen >= RingBufferSize) {
+                cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
+            }
 
-    //cost
-    setInterval(function(){
-      buflen = buff.getCount();
-      if ( buflen >= RingBufferSize){
-        //var cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
-        if (callback != null) callback(cost);
-      }
-    },1000*duration)  */
+        }, 1000 * framesec)
+
+        //cost
+        setInterval(function() {
+            buflen = buff.getCount();
+            if (buflen >= RingBufferSize) {
+                //var cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
+                if (callback != null) callback(cost);
+            }
+        }, 1000 * duration)
     }
 
 }
@@ -1038,7 +1035,7 @@ function specNormalization(freq, options) {
 
 module.exports = Pico;
 
-},{"./code.js":6,"./constants.js":7,"./lib/dtw":13}],6:[function(require,module,exports){
+},{"./code.js":6,"./constants.js":7,"./lib/distanceFunctions/asymmetric.js":10,"./lib/dtw":14}],6:[function(require,module,exports){
 var Code = function () {
   var funcs = {};
 
@@ -1148,7 +1145,11 @@ var P = new Pico;
 
 window.onload = function () {
 
-	P.init({mode:direct}); //パラメータ設定 (初期化)
+	option = {
+		bufferSize:Math.pow(2, 10), //fft size
+		mode:"direct" //comparison
+	};
+	P.init(option); //パラメータ設定 (初期化)
 
 	/*
 	//check ローカル1音: OK
@@ -1210,6 +1211,20 @@ module.exports = {
     nearlyEqual: nearlyEqual
 };
 },{}],10:[function(require,module,exports){
+var distance = function(x,y){
+      var squaredEuclideanDistance = 0;
+      for(var i=0;i<x.length;i++){
+        var x2 = Math.min(x[i],y[i]);
+        var difference = x2 - y[i];
+        squaredEuclideanDistance += difference*difference;
+      }
+      return Math.sqrt(squaredEuclideanDistance);
+  };
+
+module.exports = {
+    distance: distance
+};
+},{}],11:[function(require,module,exports){
 var distance = function (x, y) {
     var squaredEuclideanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -1223,7 +1238,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 var distance = function (x, y) {
     var manhattanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -1237,7 +1252,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 var distance = function (x, y) {
   var squaredEuclideanDistance = 0;
   for(var i=0;i<x.length;i++){
@@ -1251,7 +1266,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 /**
  * @title DTW API
  * @author Elmar Langholz
@@ -1475,7 +1490,7 @@ function retrieveOptimalPath(state) {
 
 module.exports = DTW;
 
-},{"./comparison":9,"./distanceFunctions/euclidean":10,"./distanceFunctions/manhattan":11,"./distanceFunctions/squaredEuclidean":12,"./matrix":14,"./validate":15,"debug":2}],14:[function(require,module,exports){
+},{"./comparison":9,"./distanceFunctions/euclidean":11,"./distanceFunctions/manhattan":12,"./distanceFunctions/squaredEuclidean":13,"./matrix":15,"./validate":16,"debug":2}],15:[function(require,module,exports){
 var createArray = function (length, value) {
     if (typeof length !== 'number') {
         throw new TypeError('Invalid length type');
@@ -1506,7 +1521,7 @@ module.exports = {
     create: createMatrix
 };
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 function validateSequence(sequence, sequenceParameterName) {
     if (!(sequence instanceof Array)) {
         throw new TypeError('Invalid sequence \'' + sequenceParameterName + '\' type: expected an array');
