@@ -76,7 +76,6 @@ var Pico = function() {
     }
 
     this.stop = function() {
-        state.recog = false;
         console.log("Stoppped.");
         window.clearInterval();
         return;
@@ -173,6 +172,7 @@ function costCalculation(effectdata, options, duration, callback) {
                 maxnum = effectdata[keyString].length;
         }
     }
+    if (options.mode == "dtw") maxnum = maxnum*1.5;
     RingBufferSize = maxnum;
 
     var meyda = Meyda.createMeydaAnalyzer(options);
@@ -213,7 +213,6 @@ function costCalculation(effectdata, options, duration, callback) {
     }
     if (options.mode == "direct") {
         console.log("========= direct comparison mode =========");
-
         setInterval(function() {
             var features = meyda.get(options.featureExtractors[0]);
             if (checkspec == true) {

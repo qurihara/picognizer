@@ -803,7 +803,6 @@ var Pico = function() {
     }
 
     this.stop = function() {
-        state.recog = false;
         console.log("Stoppped.");
         window.clearInterval();
         return;
@@ -868,7 +867,6 @@ function loadAudio(filename, data, options) {
                 //features = features.slice(0, parseInt(options.bufferSize / 2));
                 data.push(features);
             }
-            //if
         }, 1000 * framesec)
     });
 
@@ -901,6 +899,7 @@ function costCalculation(effectdata, options, duration, callback) {
                 maxnum = effectdata[keyString].length;
         }
     }
+    if (options.mode == "dtw") maxnum = maxnum*1.5;
     RingBufferSize = maxnum;
 
     var meyda = Meyda.createMeydaAnalyzer(options);
@@ -941,7 +940,6 @@ function costCalculation(effectdata, options, duration, callback) {
     }
     if (options.mode == "direct") {
         console.log("========= direct comparison mode =========");
-
         setInterval(function() {
             var features = meyda.get(options.featureExtractors[0]);
             if (checkspec == true) {
@@ -960,7 +958,6 @@ function costCalculation(effectdata, options, duration, callback) {
         setInterval(function() {
             buflen = buff.getCount();
             if (buflen >= RingBufferSize) {
-                //var cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
                 if (callback != null) callback(cost);
             }
         }, 1000 * duration)
@@ -976,7 +973,6 @@ function distCalculation(effectdata, buff, effectlen, BufferSize) {
         for (var n = 0; n < BufferSize; n++) {
             d = d + dist.distance(buff.get(n), effectdata[0][n]);
         }
-        //d = d/BufferSize; //1フレーム平均
     } else {
         var d = [];
         for (var keyString in effectdata) {
@@ -985,7 +981,6 @@ function distCalculation(effectdata, buff, effectlen, BufferSize) {
             for (var n = L - 1; n > BufferSize - L; n--) {
                 tmp = tmp + dist.distance(buff.get(n), effectdata[keyString][n]);
             }
-            // tmp = tmp/L; //1フレーム平均
             d.push(tmp);
         }
     }
@@ -1167,26 +1162,49 @@ window.onload = function () {
 	});
 	*/
 
-	//check web 1音:
+	var ts = 0;
+	var recog = 0;
+	var threshold = 9;
+	var str;
+
+
 	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
-		console.log("coin cost: " + cost.toFixed(2));
+		//console.log("coin cost: " + cost.toFixed(2));
+		ts += 0.1;
+		if (cost <= threshold) recog = 1;
+		else recog = 0;
+		str = $("#content").val() + ts.toFixed(2)+"\t"+recog.toFixed()+"\n";
+
+
+		$("#content").keyup(function(){
+			$("#content").val(str);
+			$("#text").val("cost:"+ cost.toFixed(2));
+		});
+		$("#content").keyup();
+
 	});
+
+	$("#export").click(function(){  // 出力ボタンを押した場合は、setBlobUrl関数に値を渡して実行
+			setBlobUrl("download", $("#content").val());
+	});
+	$("#stop").click(function(){
+			P.stop();
+	});
+
 	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
 
 };
 
-document.onkeydown = function (e){
-	if(!e) e = window.event;
+function setBlobUrl(id, content) {
 
-	/////space key
-	if(e.keyCode == 32){
-		P.stop();
-	}
-	/////enter key
-	else if(e.keyCode == 13){
+ // 指定されたデータを保持するBlobを作成する。
+    var blob = new Blob([ content ], { "type" : "application/x-msdownload" });
 
-	}
-};
+ // Aタグのhref属性にBlobオブジェクトを設定し、リンクを生成
+    window.URL = window.URL || window.webkitURL;
+    $("#" + id).attr("href", window.URL.createObjectURL(blob));
+    $("#" + id).attr("download", "tmp.txt");
+}
 
 },{"./Pico":5}],9:[function(require,module,exports){
 var EPSILON = 2.2204460492503130808472633361816E-16;

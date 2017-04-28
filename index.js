@@ -25,23 +25,46 @@ window.onload = function () {
 	});
 	*/
 
-	//check web 1音:
+	var ts = 0;
+	var recog = 0;
+	var threshold = 9;
+	var str;
+
+
 	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
-		console.log("coin cost: " + cost.toFixed(2));
+		//console.log("coin cost: " + cost.toFixed(2));
+		ts += 0.1;
+		if (cost <= threshold) recog = 1;
+		else recog = 0;
+		str = $("#content").val() + ts.toFixed(2)+"\t"+recog.toFixed()+"\n";
+
+
+		$("#content").keyup(function(){
+			$("#content").val(str);
+			$("#text").val("cost:"+ cost.toFixed(2));
+		});
+		$("#content").keyup();
+
 	});
+
+	$("#export").click(function(){  // 出力ボタンを押した場合は、setBlobUrl関数に値を渡して実行
+			setBlobUrl("download", $("#content").val());
+	});
+	$("#stop").click(function(){
+			P.stop();
+	});
+
 	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
 
 };
 
-document.onkeydown = function (e){
-	if(!e) e = window.event;
+function setBlobUrl(id, content) {
 
-	/////space key
-	if(e.keyCode == 32){
-		P.stop();
-	}
-	/////enter key
-	else if(e.keyCode == 13){
+ // 指定されたデータを保持するBlobを作成する。
+    var blob = new Blob([ content ], { "type" : "application/x-msdownload" });
 
-	}
-};
+ // Aタグのhref属性にBlobオブジェクトを設定し、リンクを生成
+    window.URL = window.URL || window.webkitURL;
+    $("#" + id).attr("href", window.URL.createObjectURL(blob));
+    $("#" + id).attr("download", "tmp.txt");
+}

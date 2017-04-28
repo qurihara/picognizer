@@ -803,7 +803,6 @@ var Pico = function() {
     }
 
     this.stop = function() {
-        state.recog = false;
         console.log("Stoppped.");
         window.clearInterval();
         return;
@@ -868,7 +867,6 @@ function loadAudio(filename, data, options) {
                 //features = features.slice(0, parseInt(options.bufferSize / 2));
                 data.push(features);
             }
-            //if
         }, 1000 * framesec)
     });
 
@@ -901,6 +899,7 @@ function costCalculation(effectdata, options, duration, callback) {
                 maxnum = effectdata[keyString].length;
         }
     }
+    if (options.mode == "dtw") maxnum = maxnum*1.5;
     RingBufferSize = maxnum;
 
     var meyda = Meyda.createMeydaAnalyzer(options);
@@ -941,7 +940,6 @@ function costCalculation(effectdata, options, duration, callback) {
     }
     if (options.mode == "direct") {
         console.log("========= direct comparison mode =========");
-
         setInterval(function() {
             var features = meyda.get(options.featureExtractors[0]);
             if (checkspec == true) {
@@ -960,7 +958,6 @@ function costCalculation(effectdata, options, duration, callback) {
         setInterval(function() {
             buflen = buff.getCount();
             if (buflen >= RingBufferSize) {
-                //var cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
                 if (callback != null) callback(cost);
             }
         }, 1000 * duration)
@@ -976,7 +973,6 @@ function distCalculation(effectdata, buff, effectlen, BufferSize) {
         for (var n = 0; n < BufferSize; n++) {
             d = d + dist.distance(buff.get(n), effectdata[0][n]);
         }
-        //d = d/BufferSize; //1フレーム平均
     } else {
         var d = [];
         for (var keyString in effectdata) {
@@ -985,7 +981,6 @@ function distCalculation(effectdata, buff, effectlen, BufferSize) {
             for (var n = L - 1; n > BufferSize - L; n--) {
                 tmp = tmp + dist.distance(buff.get(n), effectdata[keyString][n]);
             }
-            // tmp = tmp/L; //1フレーム平均
             d.push(tmp);
         }
     }
