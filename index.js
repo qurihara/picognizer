@@ -5,7 +5,8 @@ window.onload = function () {
 
 	option = {
 		bufferSize:Math.pow(2, 10), //fft size
-		mode:"direct" //comparison
+		mode:"direct",  //comparison
+		feature:["mfcc"]
 	};
 	P.init(option); //パラメータ設定 (初期化)
 
@@ -30,6 +31,7 @@ window.onload = function () {
 	var threshold = 9;
 	var str;
 
+	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
 
 	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
 		//console.log("coin cost: " + cost.toFixed(2));
@@ -53,8 +55,11 @@ window.onload = function () {
 	$("#stop").click(function(){
 			P.stop();
 	});
-
-	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
+	$("#clear").click(function(){
+			ts = 0;
+			str ="";
+			$("#content").val(str);
+	});
 
 };
 

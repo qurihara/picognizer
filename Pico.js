@@ -19,7 +19,8 @@ var Pico = function() {
         "source": null, // required
         "bufferSize": null, // required
         "windowingFunction": null,
-        "featureExtractors": []
+        "featureExtractors": [],
+        "framesec": null
     };
     var micstate = {
         "micon": false,
@@ -32,13 +33,20 @@ var Pico = function() {
         }
         if (args.bufferSize === undefined) options.bufferSize = Math.pow(2, 11);
         else options.bufferSize = args.bufferSize;
+
         if (args.windowingFunction === undefined) options.windowingFunction = "hamming";
         else options.windowingFunction = args.windowingFunction;
-        if (args.featureExtractors === undefined) options.featureExtractors = ["powerSpectrum"];
-        else options.featureExtractors = args.featureExtractors;
+
+        if (args.feature === undefined) options.featureExtractors = ["powerSpectrum"];
+        else options.featureExtractors = args.feature;
+
         if (args.mode === undefined) options.mode = "dtw";
         else options.mode = args.mode;
+
         if (args.micOutput === undefined) micstate.output = false;
+
+        if (args.framesec === undefined) options.framesec = 0.1;
+        else options.framesec = args.framesec;
     }
 
     this.recognized = function(audiofile, callback) {
@@ -121,7 +129,7 @@ function loadAudio(filename, data, options) {
     source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
     options.source = source.soundeffect;
 
-    var framesec = 0.1;
+    //var framesec = 0.1;
     var repeatTimer;
     var featurename = options.featureExtractors[0];
     console.log("Please wait until calculation of spectrogram is over.");
@@ -140,7 +148,7 @@ function loadAudio(filename, data, options) {
                 //features = features.slice(0, parseInt(options.bufferSize / 2));
                 data.push(features);
             }
-        }, 1000 * framesec)
+        }, 1000 * options.framesec)
     });
 
     audio.soundeffect.addEventListener('ended', function() {
@@ -152,7 +160,7 @@ function loadAudio(filename, data, options) {
 
 //for dtw
 function costCalculation(effectdata, options, duration, callback) {
-    var framesec = 0.1;
+    //var framesec = 0.1;
     var RingBufferSize;
     var maxnum;
 
@@ -189,7 +197,7 @@ function costCalculation(effectdata, options, duration, callback) {
             if (checkspec == true) features = specNormalization(features, options);
             //features = features.slice(0, parseInt(options.bufferSize / 2));
             if (features != null) buff.add(features);
-        }, 1000 * framesec)
+        }, 1000 * options.framesec)
 
         //cost
         setInterval(function() {
@@ -225,7 +233,7 @@ function costCalculation(effectdata, options, duration, callback) {
                 cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
             }
 
-        }, 1000 * framesec)
+        }, 1000 * options.framesec)
 
         //cost
         setInterval(function() {

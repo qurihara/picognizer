@@ -182,6 +182,7 @@ process.umask = function() { return 0; };
 
 },{}],2:[function(require,module,exports){
 (function (process){
+
 /**
  * This is the web browser implementation of `debug()`.
  *
@@ -221,23 +222,14 @@ exports.colors = [
  */
 
 function useColors() {
-  // NB: In an Electron preload script, document will be defined but not fully
-  // initialized. Since we know we're in Chrome, we'll just detect this case
-  // explicitly
-  if (typeof window !== 'undefined' && window && typeof window.process !== 'undefined' && window.process.type === 'renderer') {
-    return true;
-  }
-
   // is webkit? http://stackoverflow.com/a/16459606/376773
   // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
-  return (typeof document !== 'undefined' && document && 'WebkitAppearance' in document.documentElement.style) ||
+  return (typeof document !== 'undefined' && 'WebkitAppearance' in document.documentElement.style) ||
     // is firebug? http://stackoverflow.com/a/398120/376773
-    (typeof window !== 'undefined' && window && window.console && (console.firebug || (console.exception && console.table))) ||
+    (window.console && (console.firebug || (console.exception && console.table))) ||
     // is firefox >= v31?
     // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-    (typeof navigator !== 'undefined' && navigator && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
-    // double check webkit in userAgent just in case we are in a worker
-    (typeof navigator !== 'undefined' && navigator && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
+    (navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31);
 }
 
 /**
@@ -259,7 +251,8 @@ exports.formatters.j = function(v) {
  * @api public
  */
 
-function formatArgs(args) {
+function formatArgs() {
+  var args = arguments;
   var useColors = this.useColors;
 
   args[0] = (useColors ? '%c' : '')
@@ -269,17 +262,17 @@ function formatArgs(args) {
     + (useColors ? '%c ' : ' ')
     + '+' + exports.humanize(this.diff);
 
-  if (!useColors) return;
+  if (!useColors) return args;
 
   var c = 'color: ' + this.color;
-  args.splice(1, 0, c, 'color: inherit')
+  args = [args[0], c, 'color: inherit'].concat(Array.prototype.slice.call(args, 1));
 
   // the final "%c" is somewhat tricky, because there could be other
   // arguments passed either before or after the %c, so we need to
   // figure out the correct index to insert the CSS into
   var index = 0;
   var lastC = 0;
-  args[0].replace(/%[a-zA-Z%]/g, function(match) {
+  args[0].replace(/%[a-z%]/g, function(match) {
     if ('%%' === match) return;
     index++;
     if ('%c' === match) {
@@ -290,6 +283,7 @@ function formatArgs(args) {
   });
 
   args.splice(lastC, 0, c);
+  return args;
 }
 
 /**
@@ -334,15 +328,13 @@ function save(namespaces) {
 function load() {
   var r;
   try {
-    r = exports.storage.debug;
+    return exports.storage.debug;
   } catch(e) {}
 
   // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
-  if (!r && typeof process !== 'undefined' && 'env' in process) {
-    r = process.env.DEBUG;
+  if (typeof process !== 'undefined' && 'env' in process) {
+    return process.env.DEBUG;
   }
-
-  return r;
 }
 
 /**
@@ -362,7 +354,7 @@ exports.enable(load());
  * @api private
  */
 
-function localstorage() {
+function localstorage(){
   try {
     return window.localStorage;
   } catch (e) {}
@@ -378,7 +370,7 @@ function localstorage() {
  * Expose `debug()` as the module.
  */
 
-exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
+exports = module.exports = debug.debug = debug;
 exports.coerce = coerce;
 exports.disable = disable;
 exports.enable = enable;
@@ -395,10 +387,16 @@ exports.skips = [];
 /**
  * Map of special "%n" handling functions, for the debug "format" argument.
  *
- * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+ * Valid key names are a single, lowercased letter, i.e. "n".
  */
 
 exports.formatters = {};
+
+/**
+ * Previously assigned color.
+ */
+
+var prevColor = 0;
 
 /**
  * Previous log timestamp.
@@ -408,20 +406,13 @@ var prevTime;
 
 /**
  * Select a color.
- * @param {String} namespace
+ *
  * @return {Number}
  * @api private
  */
 
-function selectColor(namespace) {
-  var hash = 0, i;
-
-  for (i in namespace) {
-    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
-    hash |= 0; // Convert to 32bit integer
-  }
-
-  return exports.colors[Math.abs(hash) % exports.colors.length];
+function selectColor() {
+  return exports.colors[prevColor++ % exports.colors.length];
 }
 
 /**
@@ -432,13 +423,17 @@ function selectColor(namespace) {
  * @api public
  */
 
-function createDebug(namespace) {
+function debug(namespace) {
 
-  function debug() {
-    // disabled?
-    if (!debug.enabled) return;
+  // define the `disabled` version
+  function disabled() {
+  }
+  disabled.enabled = false;
 
-    var self = debug;
+  // define the `enabled` version
+  function enabled() {
+
+    var self = enabled;
 
     // set `diff` timestamp
     var curr = +new Date();
@@ -448,7 +443,10 @@ function createDebug(namespace) {
     self.curr = curr;
     prevTime = curr;
 
-    // turn the `arguments` into a proper Array
+    // add the `color` if not set
+    if (null == self.useColors) self.useColors = exports.useColors();
+    if (null == self.color && self.useColors) self.color = selectColor();
+
     var args = new Array(arguments.length);
     for (var i = 0; i < args.length; i++) {
       args[i] = arguments[i];
@@ -457,13 +455,13 @@ function createDebug(namespace) {
     args[0] = exports.coerce(args[0]);
 
     if ('string' !== typeof args[0]) {
-      // anything else let's inspect with %O
-      args.unshift('%O');
+      // anything else let's inspect with %o
+      args = ['%o'].concat(args);
     }
 
     // apply any `formatters` transformations
     var index = 0;
-    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
+    args[0] = args[0].replace(/%([a-z%])/g, function(match, format) {
       // if we encounter an escaped % then don't increase the array index
       if (match === '%%') return match;
       index++;
@@ -479,24 +477,19 @@ function createDebug(namespace) {
       return match;
     });
 
-    // apply env-specific formatting (colors, etc.)
-    exports.formatArgs.call(self, args);
+    // apply env-specific formatting
+    args = exports.formatArgs.apply(self, args);
 
-    var logFn = debug.log || exports.log || console.log.bind(console);
+    var logFn = enabled.log || exports.log || console.log.bind(console);
     logFn.apply(self, args);
   }
+  enabled.enabled = true;
 
-  debug.namespace = namespace;
-  debug.enabled = exports.enabled(namespace);
-  debug.useColors = exports.useColors();
-  debug.color = selectColor(namespace);
+  var fn = exports.enabled(namespace) ? enabled : disabled;
 
-  // env-specific initialization logic for debug instances
-  if ('function' === typeof exports.init) {
-    exports.init(debug);
-  }
+  fn.namespace = namespace;
 
-  return debug;
+  return fn;
 }
 
 /**
@@ -510,15 +503,12 @@ function createDebug(namespace) {
 function enable(namespaces) {
   exports.save(namespaces);
 
-  exports.names = [];
-  exports.skips = [];
-
   var split = (namespaces || '').split(/[\s,]+/);
   var len = split.length;
 
   for (var i = 0; i < len; i++) {
     if (!split[i]) continue; // ignore empty strings
-    namespaces = split[i].replace(/\*/g, '.*?');
+    namespaces = split[i].replace(/[\\^$+?.()|[\]{}]/g, '\\$&').replace(/\*/g, '.*?');
     if (namespaces[0] === '-') {
       exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
     } else {
@@ -746,7 +736,8 @@ var Pico = function() {
         "source": null, // required
         "bufferSize": null, // required
         "windowingFunction": null,
-        "featureExtractors": []
+        "featureExtractors": [],
+        "framesec": null
     };
     var micstate = {
         "micon": false,
@@ -759,13 +750,20 @@ var Pico = function() {
         }
         if (args.bufferSize === undefined) options.bufferSize = Math.pow(2, 11);
         else options.bufferSize = args.bufferSize;
+
         if (args.windowingFunction === undefined) options.windowingFunction = "hamming";
         else options.windowingFunction = args.windowingFunction;
-        if (args.featureExtractors === undefined) options.featureExtractors = ["powerSpectrum"];
-        else options.featureExtractors = args.featureExtractors;
+
+        if (args.feature === undefined) options.featureExtractors = ["powerSpectrum"];
+        else options.featureExtractors = args.feature;
+
         if (args.mode === undefined) options.mode = "dtw";
         else options.mode = args.mode;
+
         if (args.micOutput === undefined) micstate.output = false;
+
+        if (args.framesec === undefined) options.framesec = 0.1;
+        else options.framesec = args.framesec;
     }
 
     this.recognized = function(audiofile, callback) {
@@ -848,7 +846,7 @@ function loadAudio(filename, data, options) {
     source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
     options.source = source.soundeffect;
 
-    var framesec = 0.1;
+    //var framesec = 0.1;
     var repeatTimer;
     var featurename = options.featureExtractors[0];
     console.log("Please wait until calculation of spectrogram is over.");
@@ -867,7 +865,7 @@ function loadAudio(filename, data, options) {
                 //features = features.slice(0, parseInt(options.bufferSize / 2));
                 data.push(features);
             }
-        }, 1000 * framesec)
+        }, 1000 * options.framesec)
     });
 
     audio.soundeffect.addEventListener('ended', function() {
@@ -879,7 +877,7 @@ function loadAudio(filename, data, options) {
 
 //for dtw
 function costCalculation(effectdata, options, duration, callback) {
-    var framesec = 0.1;
+    //var framesec = 0.1;
     var RingBufferSize;
     var maxnum;
 
@@ -916,7 +914,7 @@ function costCalculation(effectdata, options, duration, callback) {
             if (checkspec == true) features = specNormalization(features, options);
             //features = features.slice(0, parseInt(options.bufferSize / 2));
             if (features != null) buff.add(features);
-        }, 1000 * framesec)
+        }, 1000 * options.framesec)
 
         //cost
         setInterval(function() {
@@ -952,7 +950,7 @@ function costCalculation(effectdata, options, duration, callback) {
                 cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
             }
 
-        }, 1000 * framesec)
+        }, 1000 * options.framesec)
 
         //cost
         setInterval(function() {
@@ -1142,7 +1140,8 @@ window.onload = function () {
 
 	option = {
 		bufferSize:Math.pow(2, 10), //fft size
-		mode:"direct" //comparison
+		mode:"direct",  //comparison
+		feature:["mfcc"]
 	};
 	P.init(option); //パラメータ設定 (初期化)
 
@@ -1167,6 +1166,7 @@ window.onload = function () {
 	var threshold = 9;
 	var str;
 
+	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
 
 	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
 		//console.log("coin cost: " + cost.toFixed(2));
@@ -1190,8 +1190,11 @@ window.onload = function () {
 	$("#stop").click(function(){
 			P.stop();
 	});
-
-	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
+	$("#clear").click(function(){
+			ts = 0;
+			str ="";
+			$("#content").val(str);
+	});
 
 };
 
