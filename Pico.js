@@ -11,6 +11,8 @@ var source = {};
 var acontext = new AudioContext();
 var mediaStream;
 var c = new Code();
+var repeatTimer;
+var meyda;
 
 var Pico = function() {
 
@@ -20,12 +22,14 @@ var Pico = function() {
         "bufferSize": null, // required
         "windowingFunction": null,
         "featureExtractors": [],
-        "framesec": null
+        "framesec": null,
+        "duration": null
     };
     var micstate = {
         "micon": false,
         "output": false
     };
+
 
     this.init = function(args) {
         if (args.length < 1) {
@@ -34,8 +38,8 @@ var Pico = function() {
         if (args.bufferSize === undefined) options.bufferSize = Math.pow(2, 11);
         else options.bufferSize = args.bufferSize;
 
-        if (args.windowingFunction === undefined) options.windowingFunction = "hamming";
-        else options.windowingFunction = args.windowingFunction;
+        if (args.windowFunc === undefined) options.windowingFunction = "hamming";
+        else options.windowingFunction = args.windowFunc;
 
         if (args.feature === undefined) options.featureExtractors = ["powerSpectrum"];
         else options.featureExtractors = args.feature;
@@ -47,11 +51,15 @@ var Pico = function() {
 
         if (args.framesec === undefined) options.framesec = 0.1;
         else options.framesec = args.framesec;
+
+        if (args.duration === undefined) options.duration = 1.0;
+        else options.duration = args.duration;
+
     }
 
     this.recognized = function(audiofile, callback) {
 
-        var duration = 1.0; //seconds
+        //options.duration = 1.0; //seconds
         var audionum;
         var data = [];
         var effectdata = {};
@@ -76,16 +84,24 @@ var Pico = function() {
         }
 
         var costcal = function func() {
-            costCalculation(effectdata, options, duration, callback);
+            costCalculation(effectdata, options, callback);
             return true;
         }
         c.addfunc(costcal);
         return;
     }
 
+    this.recordedmusic = function() {
+
+
+    }
+
     this.stop = function() {
         console.log("Stoppped.");
-        window.clearInterval();
+        meyda.stop();
+        //window.clearInterval();
+
+        clearInterval(repeatTimer);
         return;
     }
 };
@@ -130,11 +146,11 @@ function loadAudio(filename, data, options) {
     options.source = source.soundeffect;
 
     //var framesec = 0.1;
-    var repeatTimer;
+    //var repeatTimer;
     var featurename = options.featureExtractors[0];
     console.log("Please wait until calculation of spectrogram is over.");
 
-    var meyda = Meyda.createMeydaAnalyzer(options);
+    meyda = Meyda.createMeydaAnalyzer(options);
     audio.soundeffect.play();
     meyda.start(featurename);
 
@@ -159,12 +175,11 @@ function loadAudio(filename, data, options) {
 }
 
 //for dtw
-function costCalculation(effectdata, options, duration, callback) {
-    //var framesec = 0.1;
+function costCalculation(effectdata, options, callback) {
     var RingBufferSize;
     var maxnum;
 
-    if (duration < options.bufferSize / acontext.sampleRate) {
+    if (options.duration < options.bufferSize / acontext.sampleRate) {
         throw new Error("bufferSize should be smaller than duration.");
     }
 
@@ -180,15 +195,16 @@ function costCalculation(effectdata, options, duration, callback) {
                 maxnum = effectdata[keyString].length;
         }
     }
-    if (options.mode == "dtw") maxnum = maxnum*1.5;
+    if (options.mode == "dtw") maxnum = maxnum * 1.5;
     RingBufferSize = maxnum;
 
-    var meyda = Meyda.createMeydaAnalyzer(options);
+    meyda = Meyda.createMeydaAnalyzer(options);
     console.log("calculating cost");
     meyda.start(options.featureExtractors);
 
     //buffer
     var buff = new RingBuffer(RingBufferSize);
+    clearInterval(repeatTimer);
     ///////DTW
     if (options.mode == "dtw") {
         console.log("========= dtw mode =========");
@@ -200,7 +216,7 @@ function costCalculation(effectdata, options, duration, callback) {
         }, 1000 * options.framesec)
 
         //cost
-        setInterval(function() {
+        repeatTimer = setInterval(function() {
             var buflen = buff.getCount();
             if (buflen < RingBufferSize) {
                 console.log('Now buffering');
@@ -216,7 +232,7 @@ function costCalculation(effectdata, options, duration, callback) {
                 }
                 if (callback != null) callback(cost);
             }
-        }, 1000 * duration)
+        }, 1000 * options.duration)
 
     }
     if (options.mode == "direct") {
@@ -236,12 +252,14 @@ function costCalculation(effectdata, options, duration, callback) {
         }, 1000 * options.framesec)
 
         //cost
-        setInterval(function() {
+        repeatTimer = setInterval(function() {
             buflen = buff.getCount();
             if (buflen >= RingBufferSize) {
-                if (callback != null) callback(cost);
+                if (callback != null){
+                  callback(cost);
+                }
             }
-        }, 1000 * duration)
+        }, 1000 * options.duration)
     }
 
 }

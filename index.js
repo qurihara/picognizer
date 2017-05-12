@@ -3,10 +3,14 @@ var P = new Pico;
 
 window.onload = function () {
 
+	//Picoganizer parameter
 	option = {
-		bufferSize:Math.pow(2, 10), //fft size
+		bufferSize:Math.pow(2, 10), //fft size (defalt:4096)
+		windowFunc:"hamming", //
 		mode:"direct",  //comparison
-		feature:["mfcc"]
+//		feature:["mfcc"],
+		framesec:0.1,
+		duration:1.0
 	};
 	P.init(option); //パラメータ設定 (初期化)
 

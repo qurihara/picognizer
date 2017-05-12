@@ -182,7 +182,6 @@ process.umask = function() { return 0; };
 
 },{}],2:[function(require,module,exports){
 (function (process){
-
 /**
  * This is the web browser implementation of `debug()`.
  *
@@ -222,14 +221,23 @@ exports.colors = [
  */
 
 function useColors() {
+  // NB: In an Electron preload script, document will be defined but not fully
+  // initialized. Since we know we're in Chrome, we'll just detect this case
+  // explicitly
+  if (typeof window !== 'undefined' && window && typeof window.process !== 'undefined' && window.process.type === 'renderer') {
+    return true;
+  }
+
   // is webkit? http://stackoverflow.com/a/16459606/376773
   // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
-  return (typeof document !== 'undefined' && 'WebkitAppearance' in document.documentElement.style) ||
+  return (typeof document !== 'undefined' && document && 'WebkitAppearance' in document.documentElement.style) ||
     // is firebug? http://stackoverflow.com/a/398120/376773
-    (window.console && (console.firebug || (console.exception && console.table))) ||
+    (typeof window !== 'undefined' && window && window.console && (console.firebug || (console.exception && console.table))) ||
     // is firefox >= v31?
     // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-    (navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31);
+    (typeof navigator !== 'undefined' && navigator && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
+    // double check webkit in userAgent just in case we are in a worker
+    (typeof navigator !== 'undefined' && navigator && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
 }
 
 /**
@@ -251,8 +259,7 @@ exports.formatters.j = function(v) {
  * @api public
  */
 
-function formatArgs() {
-  var args = arguments;
+function formatArgs(args) {
   var useColors = this.useColors;
 
   args[0] = (useColors ? '%c' : '')
@@ -262,17 +269,17 @@ function formatArgs() {
     + (useColors ? '%c ' : ' ')
     + '+' + exports.humanize(this.diff);
 
-  if (!useColors) return args;
+  if (!useColors) return;
 
   var c = 'color: ' + this.color;
-  args = [args[0], c, 'color: inherit'].concat(Array.prototype.slice.call(args, 1));
+  args.splice(1, 0, c, 'color: inherit')
 
   // the final "%c" is somewhat tricky, because there could be other
   // arguments passed either before or after the %c, so we need to
   // figure out the correct index to insert the CSS into
   var index = 0;
   var lastC = 0;
-  args[0].replace(/%[a-z%]/g, function(match) {
+  args[0].replace(/%[a-zA-Z%]/g, function(match) {
     if ('%%' === match) return;
     index++;
     if ('%c' === match) {
@@ -283,7 +290,6 @@ function formatArgs() {
   });
 
   args.splice(lastC, 0, c);
-  return args;
 }
 
 /**
@@ -328,13 +334,15 @@ function save(namespaces) {
 function load() {
   var r;
   try {
-    return exports.storage.debug;
+    r = exports.storage.debug;
   } catch(e) {}
 
   // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
-  if (typeof process !== 'undefined' && 'env' in process) {
-    return process.env.DEBUG;
+  if (!r && typeof process !== 'undefined' && 'env' in process) {
+    r = process.env.DEBUG;
   }
+
+  return r;
 }
 
 /**
@@ -354,7 +362,7 @@ exports.enable(load());
  * @api private
  */
 
-function localstorage(){
+function localstorage() {
   try {
     return window.localStorage;
   } catch (e) {}
@@ -370,7 +378,7 @@ function localstorage(){
  * Expose `debug()` as the module.
  */
 
-exports = module.exports = debug.debug = debug;
+exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
 exports.coerce = coerce;
 exports.disable = disable;
 exports.enable = enable;
@@ -387,16 +395,10 @@ exports.skips = [];
 /**
  * Map of special "%n" handling functions, for the debug "format" argument.
  *
- * Valid key names are a single, lowercased letter, i.e. "n".
+ * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
  */
 
 exports.formatters = {};
-
-/**
- * Previously assigned color.
- */
-
-var prevColor = 0;
 
 /**
  * Previous log timestamp.
@@ -406,13 +408,20 @@ var prevTime;
 
 /**
  * Select a color.
- *
+ * @param {String} namespace
  * @return {Number}
  * @api private
  */
 
-function selectColor() {
-  return exports.colors[prevColor++ % exports.colors.length];
+function selectColor(namespace) {
+  var hash = 0, i;
+
+  for (i in namespace) {
+    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+
+  return exports.colors[Math.abs(hash) % exports.colors.length];
 }
 
 /**
@@ -423,17 +432,13 @@ function selectColor() {
  * @api public
  */
 
-function debug(namespace) {
+function createDebug(namespace) {
 
-  // define the `disabled` version
-  function disabled() {
-  }
-  disabled.enabled = false;
+  function debug() {
+    // disabled?
+    if (!debug.enabled) return;
 
-  // define the `enabled` version
-  function enabled() {
-
-    var self = enabled;
+    var self = debug;
 
     // set `diff` timestamp
     var curr = +new Date();
@@ -443,10 +448,7 @@ function debug(namespace) {
     self.curr = curr;
     prevTime = curr;
 
-    // add the `color` if not set
-    if (null == self.useColors) self.useColors = exports.useColors();
-    if (null == self.color && self.useColors) self.color = selectColor();
-
+    // turn the `arguments` into a proper Array
     var args = new Array(arguments.length);
     for (var i = 0; i < args.length; i++) {
       args[i] = arguments[i];
@@ -455,13 +457,13 @@ function debug(namespace) {
     args[0] = exports.coerce(args[0]);
 
     if ('string' !== typeof args[0]) {
-      // anything else let's inspect with %o
-      args = ['%o'].concat(args);
+      // anything else let's inspect with %O
+      args.unshift('%O');
     }
 
     // apply any `formatters` transformations
     var index = 0;
-    args[0] = args[0].replace(/%([a-z%])/g, function(match, format) {
+    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
       // if we encounter an escaped % then don't increase the array index
       if (match === '%%') return match;
       index++;
@@ -477,19 +479,24 @@ function debug(namespace) {
       return match;
     });
 
-    // apply env-specific formatting
-    args = exports.formatArgs.apply(self, args);
+    // apply env-specific formatting (colors, etc.)
+    exports.formatArgs.call(self, args);
 
-    var logFn = enabled.log || exports.log || console.log.bind(console);
+    var logFn = debug.log || exports.log || console.log.bind(console);
     logFn.apply(self, args);
   }
-  enabled.enabled = true;
 
-  var fn = exports.enabled(namespace) ? enabled : disabled;
+  debug.namespace = namespace;
+  debug.enabled = exports.enabled(namespace);
+  debug.useColors = exports.useColors();
+  debug.color = selectColor(namespace);
 
-  fn.namespace = namespace;
+  // env-specific initialization logic for debug instances
+  if ('function' === typeof exports.init) {
+    exports.init(debug);
+  }
 
-  return fn;
+  return debug;
 }
 
 /**
@@ -503,12 +510,15 @@ function debug(namespace) {
 function enable(namespaces) {
   exports.save(namespaces);
 
+  exports.names = [];
+  exports.skips = [];
+
   var split = (namespaces || '').split(/[\s,]+/);
   var len = split.length;
 
   for (var i = 0; i < len; i++) {
     if (!split[i]) continue; // ignore empty strings
-    namespaces = split[i].replace(/[\\^$+?.()|[\]{}]/g, '\\$&').replace(/\*/g, '.*?');
+    namespaces = split[i].replace(/\*/g, '.*?');
     if (namespaces[0] === '-') {
       exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
     } else {
@@ -728,6 +738,8 @@ var source = {};
 var acontext = new AudioContext();
 var mediaStream;
 var c = new Code();
+var repeatTimer;
+var meyda;
 
 var Pico = function() {
 
@@ -737,12 +749,14 @@ var Pico = function() {
         "bufferSize": null, // required
         "windowingFunction": null,
         "featureExtractors": [],
-        "framesec": null
+        "framesec": null,
+        "duration": null
     };
     var micstate = {
         "micon": false,
         "output": false
     };
+
 
     this.init = function(args) {
         if (args.length < 1) {
@@ -751,8 +765,8 @@ var Pico = function() {
         if (args.bufferSize === undefined) options.bufferSize = Math.pow(2, 11);
         else options.bufferSize = args.bufferSize;
 
-        if (args.windowingFunction === undefined) options.windowingFunction = "hamming";
-        else options.windowingFunction = args.windowingFunction;
+        if (args.windowFunc === undefined) options.windowingFunction = "hamming";
+        else options.windowingFunction = args.windowFunc;
 
         if (args.feature === undefined) options.featureExtractors = ["powerSpectrum"];
         else options.featureExtractors = args.feature;
@@ -764,11 +778,15 @@ var Pico = function() {
 
         if (args.framesec === undefined) options.framesec = 0.1;
         else options.framesec = args.framesec;
+
+        if (args.duration === undefined) options.duration = 1.0;
+        else options.duration = args.duration;
+
     }
 
     this.recognized = function(audiofile, callback) {
 
-        var duration = 1.0; //seconds
+        //options.duration = 1.0; //seconds
         var audionum;
         var data = [];
         var effectdata = {};
@@ -793,16 +811,24 @@ var Pico = function() {
         }
 
         var costcal = function func() {
-            costCalculation(effectdata, options, duration, callback);
+            costCalculation(effectdata, options, callback);
             return true;
         }
         c.addfunc(costcal);
         return;
     }
 
+    this.recordedmusic = function() {
+
+
+    }
+
     this.stop = function() {
         console.log("Stoppped.");
-        window.clearInterval();
+        meyda.stop();
+        //window.clearInterval();
+
+        clearInterval(repeatTimer);
         return;
     }
 };
@@ -847,11 +873,11 @@ function loadAudio(filename, data, options) {
     options.source = source.soundeffect;
 
     //var framesec = 0.1;
-    var repeatTimer;
+    //var repeatTimer;
     var featurename = options.featureExtractors[0];
     console.log("Please wait until calculation of spectrogram is over.");
 
-    var meyda = Meyda.createMeydaAnalyzer(options);
+    meyda = Meyda.createMeydaAnalyzer(options);
     audio.soundeffect.play();
     meyda.start(featurename);
 
@@ -876,12 +902,11 @@ function loadAudio(filename, data, options) {
 }
 
 //for dtw
-function costCalculation(effectdata, options, duration, callback) {
-    //var framesec = 0.1;
+function costCalculation(effectdata, options, callback) {
     var RingBufferSize;
     var maxnum;
 
-    if (duration < options.bufferSize / acontext.sampleRate) {
+    if (options.duration < options.bufferSize / acontext.sampleRate) {
         throw new Error("bufferSize should be smaller than duration.");
     }
 
@@ -897,15 +922,16 @@ function costCalculation(effectdata, options, duration, callback) {
                 maxnum = effectdata[keyString].length;
         }
     }
-    if (options.mode == "dtw") maxnum = maxnum*1.5;
+    if (options.mode == "dtw") maxnum = maxnum * 1.5;
     RingBufferSize = maxnum;
 
-    var meyda = Meyda.createMeydaAnalyzer(options);
+    meyda = Meyda.createMeydaAnalyzer(options);
     console.log("calculating cost");
     meyda.start(options.featureExtractors);
 
     //buffer
     var buff = new RingBuffer(RingBufferSize);
+    clearInterval(repeatTimer);
     ///////DTW
     if (options.mode == "dtw") {
         console.log("========= dtw mode =========");
@@ -917,7 +943,7 @@ function costCalculation(effectdata, options, duration, callback) {
         }, 1000 * options.framesec)
 
         //cost
-        setInterval(function() {
+        repeatTimer = setInterval(function() {
             var buflen = buff.getCount();
             if (buflen < RingBufferSize) {
                 console.log('Now buffering');
@@ -933,7 +959,7 @@ function costCalculation(effectdata, options, duration, callback) {
                 }
                 if (callback != null) callback(cost);
             }
-        }, 1000 * duration)
+        }, 1000 * options.duration)
 
     }
     if (options.mode == "direct") {
@@ -953,12 +979,14 @@ function costCalculation(effectdata, options, duration, callback) {
         }, 1000 * options.framesec)
 
         //cost
-        setInterval(function() {
+        repeatTimer = setInterval(function() {
             buflen = buff.getCount();
             if (buflen >= RingBufferSize) {
-                if (callback != null) callback(cost);
+                if (callback != null){
+                  callback(cost);
+                }
             }
-        }, 1000 * duration)
+        }, 1000 * options.duration)
     }
 
 }
@@ -1138,10 +1166,14 @@ var P = new Pico;
 
 window.onload = function () {
 
+	//Picoganizer parameter
 	option = {
-		bufferSize:Math.pow(2, 10), //fft size
+		bufferSize:Math.pow(2, 10), //fft size (defalt:4096)
+		windowFunc:"hamming", //
 		mode:"direct",  //comparison
-		feature:["mfcc"]
+//		feature:["mfcc"],
+		framesec:0.1,
+		duration:1.0
 	};
 	P.init(option); //パラメータ設定 (初期化)
 
