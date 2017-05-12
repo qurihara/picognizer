@@ -20,4 +20,6 @@ picognizer
 
     }
 
-Please see [meyda]:https://github.com/meyda/meyda/wiki "meyda wiki" for parameters (bufferSize, windowFunc, feature) on features since meyda is used for feature extraction.
+Please see [meyda][] for parameters (bufferSize, windowFunc, feature) on features since meyda is used for feature extraction.
+
+[meyda]:https://github.com/meyda/meyda/wiki "meyda wiki"
