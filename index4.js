@@ -55,7 +55,17 @@ window.onload = function () {
 	// };
 
 	conn_init();
-	P.init(); //パラメータ設定 (初期化)
+	//Picoganizer parameter
+	var option = {
+		bufferSize:Math.pow(2, 10), //fft size (defalt:4096)
+		windowFunc:"hamming", //
+		mode:"direct",  //comparison
+//		feature:["mfcc"],
+		framesec:0.1,
+		duration:1.0
+	};
+	P.init(option); //パラメータ設定 (初期化)
+	// P.init(); //パラメータ設定 (初期化)
 
 	// init_recording();
 
