@@ -13,7 +13,7 @@ picognizer
       feature:["mfcc"], // features (default: ["powerSpectrum"])
       mode:"direct",  // method for recognition (default: direct)
       inputType:"music", // if you input audio without using mic
-  		bgm:"input_audio_name", // filename of input audio without using mic  
+      bgm:"input_audio_name", // filename of input audio without using mic  
       framesec:0.1,  // seconds for a feature extraction (default: 0.02)
       duration:1.0 // seconds for cost calculation (default: 1.0)
     };
