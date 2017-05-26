@@ -5,11 +5,13 @@ window.onload = function () {
 
 	//Picoganizer parameter
 	option = {
-		bufferSize:Math.pow(2, 10), //fft size (defalt:4096)
-		windowFunc:"hamming", //
-		mode:"direct",  //comparison
+		bufferSize:Math.pow(2, 10), //fft size (defalt:1024)
+		windowFunc:"rect", //nooverlapのため
+		mode:"dtw",  //comparison
+ 		inputType:"music",
+		bgm:"audio/test_overworld.wav",
 //		feature:["mfcc"],
-		framesec:0.1,
+		framesec:0.02,
 		duration:1.0
 	};
 	P.init(option); //パラメータ設定 (初期化)
@@ -32,14 +34,14 @@ window.onload = function () {
 
 	var ts = 0;
 	var recog = 0;
-	var threshold = 9;
+	var threshold = 16;
 	var str;
 
 	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
 
 	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
 		//console.log("coin cost: " + cost.toFixed(2));
-		ts += 0.1;
+		ts += option.duration;
 		if (cost <= threshold) recog = 1;
 		else recog = 0;
 		str = $("#content").val() + ts.toFixed(2)+"\t"+recog.toFixed()+"\n";
@@ -68,11 +70,7 @@ window.onload = function () {
 };
 
 function setBlobUrl(id, content) {
-
- // 指定されたデータを保持するBlobを作成する。
     var blob = new Blob([ content ], { "type" : "application/x-msdownload" });
-
- // Aタグのhref属性にBlobオブジェクトを設定し、リンクを生成
     window.URL = window.URL || window.webkitURL;
     $("#" + id).attr("href", window.URL.createObjectURL(blob));
     $("#" + id).attr("download", "tmp.txt");

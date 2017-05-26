@@ -169,6 +169,10 @@ process.off = noop;
 process.removeListener = noop;
 process.removeAllListeners = noop;
 process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
 
 process.binding = function (name) {
     throw new Error('process.binding is not supported');
@@ -181,550 +185,6 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],2:[function(require,module,exports){
-(function (process){
-/**
- * This is the web browser implementation of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-exports = module.exports = require('./debug');
-exports.log = log;
-exports.formatArgs = formatArgs;
-exports.save = save;
-exports.load = load;
-exports.useColors = useColors;
-exports.storage = 'undefined' != typeof chrome
-               && 'undefined' != typeof chrome.storage
-                  ? chrome.storage.local
-                  : localstorage();
-
-/**
- * Colors.
- */
-
-exports.colors = [
-  'lightseagreen',
-  'forestgreen',
-  'goldenrod',
-  'dodgerblue',
-  'darkorchid',
-  'crimson'
-];
-
-/**
- * Currently only WebKit-based Web Inspectors, Firefox >= v31,
- * and the Firebug extension (any Firefox version) are known
- * to support "%c" CSS customizations.
- *
- * TODO: add a `localStorage` variable to explicitly enable/disable colors
- */
-
-function useColors() {
-  // NB: In an Electron preload script, document will be defined but not fully
-  // initialized. Since we know we're in Chrome, we'll just detect this case
-  // explicitly
-  if (typeof window !== 'undefined' && window && typeof window.process !== 'undefined' && window.process.type === 'renderer') {
-    return true;
-  }
-
-  // is webkit? http://stackoverflow.com/a/16459606/376773
-  // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
-  return (typeof document !== 'undefined' && document && 'WebkitAppearance' in document.documentElement.style) ||
-    // is firebug? http://stackoverflow.com/a/398120/376773
-    (typeof window !== 'undefined' && window && window.console && (console.firebug || (console.exception && console.table))) ||
-    // is firefox >= v31?
-    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-    (typeof navigator !== 'undefined' && navigator && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
-    // double check webkit in userAgent just in case we are in a worker
-    (typeof navigator !== 'undefined' && navigator && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
-}
-
-/**
- * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
- */
-
-exports.formatters.j = function(v) {
-  try {
-    return JSON.stringify(v);
-  } catch (err) {
-    return '[UnexpectedJSONParseError]: ' + err.message;
-  }
-};
-
-
-/**
- * Colorize log arguments if enabled.
- *
- * @api public
- */
-
-function formatArgs(args) {
-  var useColors = this.useColors;
-
-  args[0] = (useColors ? '%c' : '')
-    + this.namespace
-    + (useColors ? ' %c' : ' ')
-    + args[0]
-    + (useColors ? '%c ' : ' ')
-    + '+' + exports.humanize(this.diff);
-
-  if (!useColors) return;
-
-  var c = 'color: ' + this.color;
-  args.splice(1, 0, c, 'color: inherit')
-
-  // the final "%c" is somewhat tricky, because there could be other
-  // arguments passed either before or after the %c, so we need to
-  // figure out the correct index to insert the CSS into
-  var index = 0;
-  var lastC = 0;
-  args[0].replace(/%[a-zA-Z%]/g, function(match) {
-    if ('%%' === match) return;
-    index++;
-    if ('%c' === match) {
-      // we only are interested in the *last* %c
-      // (the user may have provided their own)
-      lastC = index;
-    }
-  });
-
-  args.splice(lastC, 0, c);
-}
-
-/**
- * Invokes `console.log()` when available.
- * No-op when `console.log` is not a "function".
- *
- * @api public
- */
-
-function log() {
-  // this hackery is required for IE8/9, where
-  // the `console.log` function doesn't have 'apply'
-  return 'object' === typeof console
-    && console.log
-    && Function.prototype.apply.call(console.log, console, arguments);
-}
-
-/**
- * Save `namespaces`.
- *
- * @param {String} namespaces
- * @api private
- */
-
-function save(namespaces) {
-  try {
-    if (null == namespaces) {
-      exports.storage.removeItem('debug');
-    } else {
-      exports.storage.debug = namespaces;
-    }
-  } catch(e) {}
-}
-
-/**
- * Load `namespaces`.
- *
- * @return {String} returns the previously persisted debug modes
- * @api private
- */
-
-function load() {
-  var r;
-  try {
-    r = exports.storage.debug;
-  } catch(e) {}
-
-  // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
-  if (!r && typeof process !== 'undefined' && 'env' in process) {
-    r = process.env.DEBUG;
-  }
-
-  return r;
-}
-
-/**
- * Enable namespaces listed in `localStorage.debug` initially.
- */
-
-exports.enable(load());
-
-/**
- * Localstorage attempts to return the localstorage.
- *
- * This is necessary because safari throws
- * when a user disables cookies/localstorage
- * and you attempt to access it.
- *
- * @return {LocalStorage}
- * @api private
- */
-
-function localstorage() {
-  try {
-    return window.localStorage;
-  } catch (e) {}
-}
-
-}).call(this,require('_process'))
-},{"./debug":3,"_process":1}],3:[function(require,module,exports){
-
-/**
- * This is the common logic for both the Node.js and web browser
- * implementations of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
-exports.coerce = coerce;
-exports.disable = disable;
-exports.enable = enable;
-exports.enabled = enabled;
-exports.humanize = require('ms');
-
-/**
- * The currently active debug mode names, and names to skip.
- */
-
-exports.names = [];
-exports.skips = [];
-
-/**
- * Map of special "%n" handling functions, for the debug "format" argument.
- *
- * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
- */
-
-exports.formatters = {};
-
-/**
- * Previous log timestamp.
- */
-
-var prevTime;
-
-/**
- * Select a color.
- * @param {String} namespace
- * @return {Number}
- * @api private
- */
-
-function selectColor(namespace) {
-  var hash = 0, i;
-
-  for (i in namespace) {
-    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
-    hash |= 0; // Convert to 32bit integer
-  }
-
-  return exports.colors[Math.abs(hash) % exports.colors.length];
-}
-
-/**
- * Create a debugger with the given `namespace`.
- *
- * @param {String} namespace
- * @return {Function}
- * @api public
- */
-
-function createDebug(namespace) {
-
-  function debug() {
-    // disabled?
-    if (!debug.enabled) return;
-
-    var self = debug;
-
-    // set `diff` timestamp
-    var curr = +new Date();
-    var ms = curr - (prevTime || curr);
-    self.diff = ms;
-    self.prev = prevTime;
-    self.curr = curr;
-    prevTime = curr;
-
-    // turn the `arguments` into a proper Array
-    var args = new Array(arguments.length);
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i];
-    }
-
-    args[0] = exports.coerce(args[0]);
-
-    if ('string' !== typeof args[0]) {
-      // anything else let's inspect with %O
-      args.unshift('%O');
-    }
-
-    // apply any `formatters` transformations
-    var index = 0;
-    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
-      // if we encounter an escaped % then don't increase the array index
-      if (match === '%%') return match;
-      index++;
-      var formatter = exports.formatters[format];
-      if ('function' === typeof formatter) {
-        var val = args[index];
-        match = formatter.call(self, val);
-
-        // now we need to remove `args[index]` since it's inlined in the `format`
-        args.splice(index, 1);
-        index--;
-      }
-      return match;
-    });
-
-    // apply env-specific formatting (colors, etc.)
-    exports.formatArgs.call(self, args);
-
-    var logFn = debug.log || exports.log || console.log.bind(console);
-    logFn.apply(self, args);
-  }
-
-  debug.namespace = namespace;
-  debug.enabled = exports.enabled(namespace);
-  debug.useColors = exports.useColors();
-  debug.color = selectColor(namespace);
-
-  // env-specific initialization logic for debug instances
-  if ('function' === typeof exports.init) {
-    exports.init(debug);
-  }
-
-  return debug;
-}
-
-/**
- * Enables a debug mode by namespaces. This can include modes
- * separated by a colon and wildcards.
- *
- * @param {String} namespaces
- * @api public
- */
-
-function enable(namespaces) {
-  exports.save(namespaces);
-
-  exports.names = [];
-  exports.skips = [];
-
-  var split = (namespaces || '').split(/[\s,]+/);
-  var len = split.length;
-
-  for (var i = 0; i < len; i++) {
-    if (!split[i]) continue; // ignore empty strings
-    namespaces = split[i].replace(/\*/g, '.*?');
-    if (namespaces[0] === '-') {
-      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
-    } else {
-      exports.names.push(new RegExp('^' + namespaces + '$'));
-    }
-  }
-}
-
-/**
- * Disable debug output.
- *
- * @api public
- */
-
-function disable() {
-  exports.enable('');
-}
-
-/**
- * Returns true if the given mode name is enabled, false otherwise.
- *
- * @param {String} name
- * @return {Boolean}
- * @api public
- */
-
-function enabled(name) {
-  var i, len;
-  for (i = 0, len = exports.skips.length; i < len; i++) {
-    if (exports.skips[i].test(name)) {
-      return false;
-    }
-  }
-  for (i = 0, len = exports.names.length; i < len; i++) {
-    if (exports.names[i].test(name)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Coerce `val`.
- *
- * @param {Mixed} val
- * @return {Mixed}
- * @api private
- */
-
-function coerce(val) {
-  if (val instanceof Error) return val.stack || val.message;
-  return val;
-}
-
-},{"ms":4}],4:[function(require,module,exports){
-/**
- * Helpers.
- */
-
-var s = 1000
-var m = s * 60
-var h = m * 60
-var d = h * 24
-var y = d * 365.25
-
-/**
- * Parse or format the given `val`.
- *
- * Options:
- *
- *  - `long` verbose formatting [false]
- *
- * @param {String|Number} val
- * @param {Object} options
- * @throws {Error} throw an error if val is not a non-empty string or a number
- * @return {String|Number}
- * @api public
- */
-
-module.exports = function (val, options) {
-  options = options || {}
-  var type = typeof val
-  if (type === 'string' && val.length > 0) {
-    return parse(val)
-  } else if (type === 'number' && isNaN(val) === false) {
-    return options.long ?
-			fmtLong(val) :
-			fmtShort(val)
-  }
-  throw new Error('val is not a non-empty string or a valid number. val=' + JSON.stringify(val))
-}
-
-/**
- * Parse the given `str` and return milliseconds.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function parse(str) {
-  str = String(str)
-  if (str.length > 10000) {
-    return
-  }
-  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str)
-  if (!match) {
-    return
-  }
-  var n = parseFloat(match[1])
-  var type = (match[2] || 'ms').toLowerCase()
-  switch (type) {
-    case 'years':
-    case 'year':
-    case 'yrs':
-    case 'yr':
-    case 'y':
-      return n * y
-    case 'days':
-    case 'day':
-    case 'd':
-      return n * d
-    case 'hours':
-    case 'hour':
-    case 'hrs':
-    case 'hr':
-    case 'h':
-      return n * h
-    case 'minutes':
-    case 'minute':
-    case 'mins':
-    case 'min':
-    case 'm':
-      return n * m
-    case 'seconds':
-    case 'second':
-    case 'secs':
-    case 'sec':
-    case 's':
-      return n * s
-    case 'milliseconds':
-    case 'millisecond':
-    case 'msecs':
-    case 'msec':
-    case 'ms':
-      return n
-    default:
-      return undefined
-  }
-}
-
-/**
- * Short format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function fmtShort(ms) {
-  if (ms >= d) {
-    return Math.round(ms / d) + 'd'
-  }
-  if (ms >= h) {
-    return Math.round(ms / h) + 'h'
-  }
-  if (ms >= m) {
-    return Math.round(ms / m) + 'm'
-  }
-  if (ms >= s) {
-    return Math.round(ms / s) + 's'
-  }
-  return ms + 'ms'
-}
-
-/**
- * Long format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function fmtLong(ms) {
-  return plural(ms, d, 'day') ||
-    plural(ms, h, 'hour') ||
-    plural(ms, m, 'minute') ||
-    plural(ms, s, 'second') ||
-    ms + ' ms'
-}
-
-/**
- * Pluralization helper.
- */
-
-function plural(ms, n, name) {
-  if (ms < n) {
-    return
-  }
-  if (ms < n * 1.5) {
-    return Math.floor(ms / n) + ' ' + name
-  }
-  return Math.ceil(ms / n) + ' ' + name + 's'
-}
-
-},{}],5:[function(require,module,exports){
 var DTW = require("./lib/dtw");
 var dist = require("./lib/distanceFunctions/asymmetric.js");
 var Code = require("./code.js");
@@ -738,325 +198,400 @@ var source = {};
 var acontext = new AudioContext();
 var mediaStream;
 var c = new Code();
+var c1 = new Code();
 var repeatTimer;
+var repeatTimer1;
 var meyda;
 
 var Pico = function() {
 
-    options = {
-        "audioContext": acontext, // required
-        "source": null, // required
-        "bufferSize": null, // required
-        "windowingFunction": null,
-        "featureExtractors": [],
-        "framesec": null,
-        "duration": null
-    };
-    var micstate = {
-        "micon": false,
-        "output": false
-    };
+  options = {
+    "audioContext": acontext, // required
+    "source": null, // required
+    "bufferSize": null, // required
+    "windowingFunction": null,
+    "featureExtractors": [],
+    "framesec": null,
+    "duration": null
+  };
+  var inputState = {
+    "inputOn": false,
+    "output": false,
+    "type": null,
+    "bgm": null
+  };
 
+  this.init = function(args) {
+    if (args === undefined) {
+      console.log("Default parameter (bufferSize: 1024, window:hamming, feature: powerSpectrum)");
+    }
+    if (args.bufferSize === undefined) options.bufferSize = Math.pow(2, 10);
+    else options.bufferSize = args.bufferSize;
 
-    this.init = function(args) {
-        if (args.length < 1) {
-            console.log("Default parameter (bufferSize: 2048, featureExtractors: powerSpectrum)");
-        }
-        if (args.bufferSize === undefined) options.bufferSize = Math.pow(2, 11);
-        else options.bufferSize = args.bufferSize;
+    if (args.windowFunc === undefined) options.windowingFunction = "hamming";
+    else options.windowingFunction = args.windowFunc;
 
-        if (args.windowFunc === undefined) options.windowingFunction = "hamming";
-        else options.windowingFunction = args.windowFunc;
+    if (args.feature === undefined) options.featureExtractors = ["powerSpectrum"];
+    else options.featureExtractors = args.feature;
 
-        if (args.feature === undefined) options.featureExtractors = ["powerSpectrum"];
-        else options.featureExtractors = args.feature;
+    if (args.mode === undefined) options.mode = "dtw";
+    else options.mode = args.mode;
 
-        if (args.mode === undefined) options.mode = "dtw";
-        else options.mode = args.mode;
-
-        if (args.micOutput === undefined) micstate.output = false;
-
-        if (args.framesec === undefined) options.framesec = 0.1;
-        else options.framesec = args.framesec;
-
-        if (args.duration === undefined) options.duration = 1.0;
-        else options.duration = args.duration;
-
+    if (args.inputType === undefined) inputState.type = "mic";
+    else {
+      inputState.type = args.inputType;
+      inputState.bgm = args.bgm;
     }
 
-    this.recognized = function(audiofile, callback) {
+    if (args.micOutput === undefined) inputState.output = false;
 
-        //options.duration = 1.0; //seconds
-        var audionum;
-        var data = [];
-        var effectdata = {};
-        //複数を判定
-        if (!(audiofile instanceof Array)) {
-            audionum = 1;
-            loadAudio(audiofile, data, options);
-            effectdata[0] = data;
-        } else {
-            audionum = audiofile.length;
-            for (var n = 0; n < audionum; n++) {
-                data = [];
-                var key = String(n);
-                loadAudio(audiofile[n], data, options);
-                effectdata[key] = data;
-            }
-        }
+    if (args.framesec === undefined) options.framesec = 0.02;
+    else options.framesec = args.framesec;
 
-        //mic
-        if (micstate.micon == false) {
-            usingMic(micstate);
-        }
+    if (args.duration === undefined) options.duration = 1.0;
+    else options.duration = args.duration;
 
-        var costcal = function func() {
-            costCalculation(effectdata, options, callback);
-            return true;
-        }
-        c.addfunc(costcal);
-        return;
+    return;
+  };
+
+  this.recognized = function(audiofile, callback) {
+
+    var audionum;
+    var data = [];
+    var effectdata = {};
+
+    //mic
+    if (inputState.type == "mic" && inputState.inputOn == false) {
+      var inputData = function func(){
+         usingMic(inputState);
+      }
+    }
+    if (inputState.type == "music" && inputState.inputOn == false) {
+      var inputData = function func(){
+        usingMusic(inputState);
+      }
+    }
+    c1.addfunc(inputData);
+
+    if (!(audiofile instanceof Array)) {
+      audionum = 1;
+      loadAudio(audiofile, data, options);
+      effectdata[0] = data;
+    } else {
+      audionum = audiofile.length;
+      for (var n = 0; n < audionum; n++) {
+        data = [];
+        var key = String(n);
+        loadAudio(audiofile[n], data, options);
+        effectdata[key] = data;
+      }
     }
 
-    this.recordedmusic = function() {
-
-
+    var costcal = function func() {
+      costCalculation(effectdata, options, callback);
+      return true;
     }
+    c.addfunc(costcal);
+    return;
+  };
 
-    this.stop = function() {
-        console.log("Stoppped.");
-        meyda.stop();
-        //window.clearInterval();
-
-        clearInterval(repeatTimer);
-        return;
-    }
+  this.stop = function() {
+    console.log("Stoppped.");
+    meyda.stop();
+    clearInterval(repeatTimer);
+    return;
+  };
 };
 
+//playしたら終わるモード
+function usingMusic(inputState) {
+  audio.inputsound = new Audio();
+  audio.inputsound.src = inputState.bgm;
+  audio.inputsound.crossOrigin = "anonymous";
+  audio.inputsound.addEventListener('loadstart', function() {
+    console.log("Music loaded!");
+    source.input = acontext.createMediaElementSource(audio.inputsound);
+    source.input.connect(acontext.destination);
+    inputState.inputOn = true;
+    audio.inputsound.play();
+  });
+
+  audio.inputsound.addEventListener('play', function() {
+    c.execfuncs();
+  });
+
+  audio.inputsound.addEventListener('ended', function() {
+    meyda.stop();
+    clearInterval(repeatTimer);
+    console.log("Stopped.");
+  });
+}
+
 //microphone
-function usingMic(micstate) {
-    console.log("using mic");
-    if (!navigator.getUserMedia) {
-        alert('getUserMedia is not supported.');
+function usingMic(inputState) {
+  console.log("using mic");
+  if (!navigator.getUserMedia) {
+    alert('getUserMedia is not supported.');
+  }
+  navigator.getUserMedia({
+      video: false,
+      audio: true
+    },
+    function(stream) { //success
+      mediaStream = stream;
+      audio.inputsound = new Audio();
+      audio.inputsound.src = mediaStream;
+      source.input = acontext.createMediaStreamSource(mediaStream);
+      console.log("The microphone turned on.");
+      if (inputState.output == true) source.input.connect(acontext.destination);
+      inputState.inputOn = true;
+      c.execfuncs();
+    },
+    function(err) { //error
+      alert("Error accessing the microphone.");
     }
-    navigator.getUserMedia({
-            video: false,
-            audio: true
-        },
-        function(stream) { //success
-            mediaStream = stream;
-            audio.mic = new Audio();
-            audio.mic.src = mediaStream;
-            source.mic = acontext.createMediaStreamSource(mediaStream);
-            console.log("The microphone turned on.");
-            if (micstate.output == true) source.mic.connect(acontext.destination);
-            micstate.micon = true;
-            c.execfuncs();
-        },
-        function(err) { //error
-            alert("Error accessing the microphone.");
-        }
-    )
+  )
 }
 
 function checkSpectrum(options) {
-    if (options.featureExtractors.indexOf('powerSpectrum') != -1 || options.featureExtractors.indexOf('amplitudeSpectrum') != -1) return true;
-    else return false;
+  if (options.featureExtractors.indexOf('powerSpectrum') != -1 || options.featureExtractors.indexOf('amplitudeSpectrum') != -1) return true;
+  else return false;
 }
 
 //sound effect
 function loadAudio(filename, data, options) {
-    audio.soundeffect = new Audio();
-    audio.soundeffect.src = filename;
-    audio.soundeffect.crossOrigin = "anonymous";
-    source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
-    options.source = source.soundeffect;
+  audio.soundeffect = new Audio();
+  audio.soundeffect.src = filename;
+  audio.soundeffect.crossOrigin = "anonymous";
+  var featurename = options.featureExtractors[0];
+  var checkspec = checkSpectrum(options);
 
-    //var framesec = 0.1;
-    //var repeatTimer;
-    var featurename = options.featureExtractors[0];
-    console.log("Please wait until calculation of spectrogram is over.");
+  /*
+  //特徴量offline計算
+  loadEffectAudio(filename, function(buffer) {
+    signal = buffer.getChannelData(0);
+    var maxframe = Math.ceil(signal.length / options.bufferSize) - 1; //フレーム数
 
-    meyda = Meyda.createMeydaAnalyzer(options);
-    audio.soundeffect.play();
-    meyda.start(featurename);
+    //フレーム処理
+    data = [];
+    var startframe = 0;
+    var endframe = startframe + options.bufferSize;
+    Meyda.bufferSize = options.bufferSize;
 
-    var checkspec = checkSpectrum(options);
+    for (var n = 0; n < maxframe; n++) {
+      var features = Meyda.extract(featurename, signal.slice(startframe, endframe));
+      if (checkspec == true) features = specNormalization(features, options);
+      data.push(features);
+      startframe = startframe + options.bufferSize;
+      endframe = startframe + options.bufferSize;
+    }
+  });
+  */
 
-    audio.soundeffect.addEventListener('playing', function() {
-        repeatTimer = setInterval(function() {
-            var features = meyda.get(featurename);
-            if (features != null) {
-                if (checkspec == true) features = specNormalization(features, options);
-                //features = features.slice(0, parseInt(options.bufferSize / 2));
-                data.push(features);
-            }
-        }, 1000 * options.framesec)
-    });
+  source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
+  options.source = source.soundeffect;
 
-    audio.soundeffect.addEventListener('ended', function() {
-        meyda.stop();
-        clearInterval(repeatTimer);
-    });
+  var featurename = options.featureExtractors[0];
+  console.log("Please wait until calculation of spectrogram is over.");
 
+  meyda = Meyda.createMeydaAnalyzer(options);
+  audio.soundeffect.play();
+  meyda.start(featurename);
+
+  var checkspec = checkSpectrum(options);
+
+  audio.soundeffect.addEventListener('playing', function() {
+    repeatTimer1 = setInterval(function() {
+      var features = meyda.get(featurename);
+      if (features != null) {
+        if (checkspec == true) features = specNormalization(features, options);
+        //features = features.slice(0, parseInt(options.bufferSize / 2));
+        data.push(features);
+      }
+    }, 1000 * options.framesec)
+  });
+
+  audio.soundeffect.addEventListener('ended', function() {
+    meyda.stop();
+    clearInterval(repeatTimer1);
+    c1.execfuncs();
+  });
+  
 }
 
-//for dtw
+function loadEffectAudio(audiofile, callback) {
+  var request = new XMLHttpRequest();
+  request.open('GET', audiofile, true);
+  request.responseType = 'arraybuffer';
+
+  request.onload = function() {
+    acontext.decodeAudioData(request.response, function(buffer) {
+      callback(buffer);
+    });
+  }
+  request.send();
+}
+
+function powerSearch(value) {
+  var n = 1;
+  while (value > Math.pow(2, n)) {
+    n++;
+  }
+  return Math.pow(2, n);
+}
+//costCalculation
 function costCalculation(effectdata, options, callback) {
-    var RingBufferSize;
-    var maxnum;
+  var RingBufferSize;
+  var maxnum;
 
-    if (options.duration < options.bufferSize / acontext.sampleRate) {
-        throw new Error("bufferSize should be smaller than duration.");
+  options.source = source.input;
+  console.log(options);
+  var checkspec = checkSpectrum(options);
+  var effectlen = Object.keys(effectdata).length;
+
+  maxnum = effectdata[0].length;
+  if (effectlen > 1) {
+    for (var keyString in effectdata) {
+      if (maxnum < effectdata[keyString].length)
+        maxnum = effectdata[keyString].length;
     }
+  }
+  //if (options.mode == "dtw") maxnum = maxnum * 1.5;
+  RingBufferSize = maxnum;
 
-    audio.mic.play();
-    options.source = source.mic;
-    var checkspec = checkSpectrum(options);
-    var effectlen = Object.keys(effectdata).length;
+  meyda = Meyda.createMeydaAnalyzer(options);
+  console.log("calculating cost");
+  meyda.start(options.featureExtractors);
 
-    maxnum = effectdata[0].length;
-    if (effectlen > 1) {
-        for (var keyString in effectdata) {
-            if (maxnum < effectdata[keyString].length)
-                maxnum = effectdata[keyString].length;
+  //buffer
+  var buff = new RingBuffer(RingBufferSize);
+  clearInterval(repeatTimer);
+
+  ///////DTW
+  if (options.mode == "dtw") {
+    console.log("========= dtw mode =========");
+    setInterval(function() {
+      var features = meyda.get(options.featureExtractors[0]);
+      if (features != null) {
+        if (checkspec == true) features = specNormalization(features, options);
+        //features = features.slice(0, parseInt(options.bufferSize / 2));
+        buff.add(features);
+      }
+    }, 1000 * options.framesec)
+
+    //cost
+    repeatTimer = setInterval(function() {
+      var buflen = buff.getCount();
+      if (buflen < RingBufferSize) {
+        console.log('Now buffering');
+      } else {
+        if (effectlen == 1) {
+          var cost = dtw.compute(buff.buffer, effectdata[0]);
+        } else {
+          var cost = [];
+          for (var keyString in effectdata) {
+            var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
+            cost.push(tmp);
+          }
         }
-    }
-    if (options.mode == "dtw") maxnum = maxnum * 1.5;
-    RingBufferSize = maxnum;
+        if (callback != null) callback(cost);
+      }
+    }, 1000 * options.duration)
 
-    meyda = Meyda.createMeydaAnalyzer(options);
-    console.log("calculating cost");
-    meyda.start(options.featureExtractors);
+  }
+  if (options.mode == "direct") {
+    console.log("========= direct comparison mode =========");
+    setInterval(function() {
+      var features = meyda.get(options.featureExtractors[0]);
+      if (features != null) {
+        if (checkspec == true) features = specNormalization(features, options);
+        buff.add(features);
+      }
+      buflen = buff.getCount();
+      if (buflen >= RingBufferSize) {
+        cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
+      }
+    }, 1000 * options.framesec)
 
-    //buffer
-    var buff = new RingBuffer(RingBufferSize);
-    clearInterval(repeatTimer);
-    ///////DTW
-    if (options.mode == "dtw") {
-        console.log("========= dtw mode =========");
-        setInterval(function() {
-            var features = meyda.get(options.featureExtractors[0]);
-            if (checkspec == true) features = specNormalization(features, options);
-            //features = features.slice(0, parseInt(options.bufferSize / 2));
-            if (features != null) buff.add(features);
-        }, 1000 * options.framesec)
-
-        //cost
-        repeatTimer = setInterval(function() {
-            var buflen = buff.getCount();
-            if (buflen < RingBufferSize) {
-                console.log('Now buffering');
-            } else {
-                if (effectlen == 1) {
-                    var cost = dtw.compute(buff.buffer, effectdata[0]);
-                } else {
-                    var cost = [];
-                    for (var keyString in effectdata) {
-                        var tmp = dtw.compute(buff.buffer, effectdata[keyString]);
-                        cost.push(tmp);
-                    }
-                }
-                if (callback != null) callback(cost);
-            }
-        }, 1000 * options.duration)
-
-    }
-    if (options.mode == "direct") {
-        console.log("========= direct comparison mode =========");
-        setInterval(function() {
-            var features = meyda.get(options.featureExtractors[0]);
-            if (checkspec == true) {
-                features = specNormalization(features, options);
-                //features = features.slice(0, parseInt(options.bufferSize / 2)); ///1/2を取り出す
-            }
-            if (features != null) buff.add(features);
-            buflen = buff.getCount();
-            if (buflen >= RingBufferSize) {
-                cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
-            }
-
-        }, 1000 * options.framesec)
-
-        //cost
-        repeatTimer = setInterval(function() {
-            buflen = buff.getCount();
-            if (buflen >= RingBufferSize) {
-                if (callback != null){
-                  callback(cost);
-                }
-            }
-        }, 1000 * options.duration)
-    }
-
+    //cost
+    repeatTimer = setInterval(function() {
+      buflen = buff.getCount();
+      if (buflen >= RingBufferSize) {
+        if (callback != null) {
+          callback(cost);
+        }
+      }
+    }, 1000 * options.duration)
+  }
 }
 
 // for direct comparison
 function distCalculation(effectdata, buff, effectlen, BufferSize) {
 
-    if (effectlen == 1) {
-        var d = 0;
-        for (var n = 0; n < BufferSize; n++) {
-            d = d + dist.distance(buff.get(n), effectdata[0][n]);
-        }
-    } else {
-        var d = [];
-        for (var keyString in effectdata) {
-            L = effectdata[keyString].length;
-            var tmp = 0;
-            for (var n = L - 1; n > BufferSize - L; n--) {
-                tmp = tmp + dist.distance(buff.get(n), effectdata[keyString][n]);
-            }
-            d.push(tmp);
-        }
+  if (effectlen == 1) {
+    var d = 0;
+    for (var n = 0; n < BufferSize; n++) {
+      d = d + dist.distance(buff.get(n), effectdata[0][n]);
     }
-    return d;
+
+  } else {
+    var d = [];
+    for (var keyString in effectdata) {
+      L = effectdata[keyString].length;
+      var tmp = 0;
+      for (var n = L - 1; n > BufferSize - L; n--) {
+        tmp = tmp + dist.distance(buff.get(n), effectdata[keyString][n]);
+      }
+      d.push(tmp);
+    }
+  }
+  return d;
 }
 
 
 var RingBuffer = function(bufferCount) {
-    if (bufferCount === undefined) bufferCount = 0;
-    this.buffer = new Array(bufferCount);
-    this.count = 0;
+  if (bufferCount === undefined) bufferCount = 0;
+  this.buffer = new Array(bufferCount);
+  this.count = 0;
 };
 
 RingBuffer.prototype = {
-    add: function(data) {
-        var lastIndex = (this.count % this.buffer.length);
-        this.buffer[lastIndex] = data;
-        this.count++;
-        return (this.count <= this.buffer.length ? 0 : 1);
-    },
+  add: function(data) {
+    var lastIndex = (this.count % this.buffer.length);
+    this.buffer[lastIndex] = data;
+    this.count++;
+    return (this.count <= this.buffer.length ? 0 : 1);
+  },
 
-    get: function(index) {
-        if (this.buffer.length < this.count)
-            index += this.count;
-        index %= this.buffer.length;
-        return this.buffer[index];
-    },
-    getCount: function() {
-        return Math.min(this.buffer.length, this.count);
-    }
+  get: function(index) {
+    if (this.buffer.length < this.count)
+      index += this.count;
+    index %= this.buffer.length;
+    return this.buffer[index];
+  },
+  getCount: function() {
+    return Math.min(this.buffer.length, this.count);
+  }
 };
 
 function specNormalization(freq, options) {
-    var maxval = Math.max.apply([], freq);
-    if (maxval == 0) {
-        return freq;
-    } else {
-        for (n = 0; n < options.bufferSize; n++) {
-            freq[n] = freq[n] / maxval;
-        }
-        for (n = 0; n < options.bufferSize; n++) {
-            if (freq[n] < 0.01) freq[n] = 0;
-        }
-        return freq;
+  var maxval = Math.max.apply([], freq);
+  if (maxval == 0) {
+    return freq;
+  } else {
+    for (n = 0; n < options.bufferSize; n++) {
+      freq[n] = freq[n] / maxval;
     }
+    for (n = 0; n < options.bufferSize; n++) {
+      if (freq[n] < 0.001) freq[n] = 0;
+    }
+    return freq;
+  }
 }
 
 module.exports = Pico;
 
-},{"./code.js":6,"./constants.js":7,"./lib/distanceFunctions/asymmetric.js":10,"./lib/dtw":14}],6:[function(require,module,exports){
+},{"./code.js":3,"./constants.js":4,"./lib/distanceFunctions/asymmetric.js":7,"./lib/dtw":11}],3:[function(require,module,exports){
 var Code = function () {
   var funcs = {};
 
@@ -1145,7 +680,7 @@ module.exports = Code;
 // console.log("[second trial]");
 // c.execfuncs();
 
-},{}],7:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 var URL = window.URL || window.webkitURL;
@@ -1160,7 +695,7 @@ var mediaC = {
   }
 };
 
-},{}],8:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 var Pico = require('./Pico');
 var P = new Pico;
 
@@ -1168,11 +703,13 @@ window.onload = function () {
 
 	//Picoganizer parameter
 	option = {
-		bufferSize:Math.pow(2, 10), //fft size (defalt:4096)
-		windowFunc:"hamming", //
-		mode:"direct",  //comparison
+		bufferSize:Math.pow(2, 10), //fft size (defalt:1024)
+		windowFunc:"rect", //nooverlapのため
+		mode:"dtw",  //comparison
+ 		inputType:"music",
+		bgm:"audio/test_overworld.wav",
 //		feature:["mfcc"],
-		framesec:0.1,
+		framesec:0.02,
 		duration:1.0
 	};
 	P.init(option); //パラメータ設定 (初期化)
@@ -1195,14 +732,14 @@ window.onload = function () {
 
 	var ts = 0;
 	var recog = 0;
-	var threshold = 9;
+	var threshold = 16;
 	var str;
 
 	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
 
 	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
 		//console.log("coin cost: " + cost.toFixed(2));
-		ts += 0.1;
+		ts += option.duration;
 		if (cost <= threshold) recog = 1;
 		else recog = 0;
 		str = $("#content").val() + ts.toFixed(2)+"\t"+recog.toFixed()+"\n";
@@ -1231,17 +768,13 @@ window.onload = function () {
 };
 
 function setBlobUrl(id, content) {
-
- // 指定されたデータを保持するBlobを作成する。
     var blob = new Blob([ content ], { "type" : "application/x-msdownload" });
-
- // Aタグのhref属性にBlobオブジェクトを設定し、リンクを生成
     window.URL = window.URL || window.webkitURL;
     $("#" + id).attr("href", window.URL.createObjectURL(blob));
     $("#" + id).attr("download", "tmp.txt");
 }
 
-},{"./Pico":5}],9:[function(require,module,exports){
+},{"./Pico":2}],6:[function(require,module,exports){
 var EPSILON = 2.2204460492503130808472633361816E-16;
 
 var nearlyEqual = function (i, j, epsilon) {
@@ -1263,7 +796,7 @@ module.exports = {
     EPSILON: EPSILON,
     nearlyEqual: nearlyEqual
 };
-},{}],10:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var distance = function(x,y){
       var squaredEuclideanDistance = 0;
       for(var i=0;i<x.length;i++){
@@ -1277,7 +810,7 @@ var distance = function(x,y){
 module.exports = {
     distance: distance
 };
-},{}],11:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 var distance = function (x, y) {
     var squaredEuclideanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -1291,7 +824,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],12:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 var distance = function (x, y) {
     var manhattanDistance = 0;
     for(var i=0;i<x.length;i++){
@@ -1305,7 +838,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],13:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 var distance = function (x, y) {
   var squaredEuclideanDistance = 0;
   for(var i=0;i<x.length;i++){
@@ -1319,7 +852,7 @@ module.exports = {
     distance: distance
 };
 
-},{}],14:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /**
  * @title DTW API
  * @author Elmar Langholz
@@ -1543,7 +1076,7 @@ function retrieveOptimalPath(state) {
 
 module.exports = DTW;
 
-},{"./comparison":9,"./distanceFunctions/euclidean":11,"./distanceFunctions/manhattan":12,"./distanceFunctions/squaredEuclidean":13,"./matrix":15,"./validate":16,"debug":2}],15:[function(require,module,exports){
+},{"./comparison":6,"./distanceFunctions/euclidean":8,"./distanceFunctions/manhattan":9,"./distanceFunctions/squaredEuclidean":10,"./matrix":12,"./validate":13,"debug":14}],12:[function(require,module,exports){
 var createArray = function (length, value) {
     if (typeof length !== 'number') {
         throw new TypeError('Invalid length type');
@@ -1574,7 +1107,7 @@ module.exports = {
     create: createMatrix
 };
 
-},{}],16:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 function validateSequence(sequence, sequenceParameterName) {
     if (!(sequence instanceof Array)) {
         throw new TypeError('Invalid sequence \'' + sequenceParameterName + '\' type: expected an array');
@@ -1593,4 +1126,551 @@ module.exports = {
     sequence: validateSequence
 };
 
-},{}]},{},[8]);
+},{}],14:[function(require,module,exports){
+(function (process){
+/**
+ * This is the web browser implementation of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = require('./debug');
+exports.log = log;
+exports.formatArgs = formatArgs;
+exports.save = save;
+exports.load = load;
+exports.useColors = useColors;
+exports.storage = 'undefined' != typeof chrome
+               && 'undefined' != typeof chrome.storage
+                  ? chrome.storage.local
+                  : localstorage();
+
+/**
+ * Colors.
+ */
+
+exports.colors = [
+  'lightseagreen',
+  'forestgreen',
+  'goldenrod',
+  'dodgerblue',
+  'darkorchid',
+  'crimson'
+];
+
+/**
+ * Currently only WebKit-based Web Inspectors, Firefox >= v31,
+ * and the Firebug extension (any Firefox version) are known
+ * to support "%c" CSS customizations.
+ *
+ * TODO: add a `localStorage` variable to explicitly enable/disable colors
+ */
+
+function useColors() {
+  // NB: In an Electron preload script, document will be defined but not fully
+  // initialized. Since we know we're in Chrome, we'll just detect this case
+  // explicitly
+  if (typeof window !== 'undefined' && window.process && window.process.type === 'renderer') {
+    return true;
+  }
+
+  // is webkit? http://stackoverflow.com/a/16459606/376773
+  // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
+  return (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance) ||
+    // is firebug? http://stackoverflow.com/a/398120/376773
+    (typeof window !== 'undefined' && window.console && (window.console.firebug || (window.console.exception && window.console.table))) ||
+    // is firefox >= v31?
+    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
+    // double check webkit in userAgent just in case we are in a worker
+    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
+}
+
+/**
+ * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+ */
+
+exports.formatters.j = function(v) {
+  try {
+    return JSON.stringify(v);
+  } catch (err) {
+    return '[UnexpectedJSONParseError]: ' + err.message;
+  }
+};
+
+
+/**
+ * Colorize log arguments if enabled.
+ *
+ * @api public
+ */
+
+function formatArgs(args) {
+  var useColors = this.useColors;
+
+  args[0] = (useColors ? '%c' : '')
+    + this.namespace
+    + (useColors ? ' %c' : ' ')
+    + args[0]
+    + (useColors ? '%c ' : ' ')
+    + '+' + exports.humanize(this.diff);
+
+  if (!useColors) return;
+
+  var c = 'color: ' + this.color;
+  args.splice(1, 0, c, 'color: inherit')
+
+  // the final "%c" is somewhat tricky, because there could be other
+  // arguments passed either before or after the %c, so we need to
+  // figure out the correct index to insert the CSS into
+  var index = 0;
+  var lastC = 0;
+  args[0].replace(/%[a-zA-Z%]/g, function(match) {
+    if ('%%' === match) return;
+    index++;
+    if ('%c' === match) {
+      // we only are interested in the *last* %c
+      // (the user may have provided their own)
+      lastC = index;
+    }
+  });
+
+  args.splice(lastC, 0, c);
+}
+
+/**
+ * Invokes `console.log()` when available.
+ * No-op when `console.log` is not a "function".
+ *
+ * @api public
+ */
+
+function log() {
+  // this hackery is required for IE8/9, where
+  // the `console.log` function doesn't have 'apply'
+  return 'object' === typeof console
+    && console.log
+    && Function.prototype.apply.call(console.log, console, arguments);
+}
+
+/**
+ * Save `namespaces`.
+ *
+ * @param {String} namespaces
+ * @api private
+ */
+
+function save(namespaces) {
+  try {
+    if (null == namespaces) {
+      exports.storage.removeItem('debug');
+    } else {
+      exports.storage.debug = namespaces;
+    }
+  } catch(e) {}
+}
+
+/**
+ * Load `namespaces`.
+ *
+ * @return {String} returns the previously persisted debug modes
+ * @api private
+ */
+
+function load() {
+  var r;
+  try {
+    r = exports.storage.debug;
+  } catch(e) {}
+
+  // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
+  if (!r && typeof process !== 'undefined' && 'env' in process) {
+    r = process.env.DEBUG;
+  }
+
+  return r;
+}
+
+/**
+ * Enable namespaces listed in `localStorage.debug` initially.
+ */
+
+exports.enable(load());
+
+/**
+ * Localstorage attempts to return the localstorage.
+ *
+ * This is necessary because safari throws
+ * when a user disables cookies/localstorage
+ * and you attempt to access it.
+ *
+ * @return {LocalStorage}
+ * @api private
+ */
+
+function localstorage() {
+  try {
+    return window.localStorage;
+  } catch (e) {}
+}
+
+}).call(this,require('_process'))
+},{"./debug":15,"_process":1}],15:[function(require,module,exports){
+
+/**
+ * This is the common logic for both the Node.js and web browser
+ * implementations of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
+exports.coerce = coerce;
+exports.disable = disable;
+exports.enable = enable;
+exports.enabled = enabled;
+exports.humanize = require('ms');
+
+/**
+ * The currently active debug mode names, and names to skip.
+ */
+
+exports.names = [];
+exports.skips = [];
+
+/**
+ * Map of special "%n" handling functions, for the debug "format" argument.
+ *
+ * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+ */
+
+exports.formatters = {};
+
+/**
+ * Previous log timestamp.
+ */
+
+var prevTime;
+
+/**
+ * Select a color.
+ * @param {String} namespace
+ * @return {Number}
+ * @api private
+ */
+
+function selectColor(namespace) {
+  var hash = 0, i;
+
+  for (i in namespace) {
+    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+
+  return exports.colors[Math.abs(hash) % exports.colors.length];
+}
+
+/**
+ * Create a debugger with the given `namespace`.
+ *
+ * @param {String} namespace
+ * @return {Function}
+ * @api public
+ */
+
+function createDebug(namespace) {
+
+  function debug() {
+    // disabled?
+    if (!debug.enabled) return;
+
+    var self = debug;
+
+    // set `diff` timestamp
+    var curr = +new Date();
+    var ms = curr - (prevTime || curr);
+    self.diff = ms;
+    self.prev = prevTime;
+    self.curr = curr;
+    prevTime = curr;
+
+    // turn the `arguments` into a proper Array
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i];
+    }
+
+    args[0] = exports.coerce(args[0]);
+
+    if ('string' !== typeof args[0]) {
+      // anything else let's inspect with %O
+      args.unshift('%O');
+    }
+
+    // apply any `formatters` transformations
+    var index = 0;
+    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
+      // if we encounter an escaped % then don't increase the array index
+      if (match === '%%') return match;
+      index++;
+      var formatter = exports.formatters[format];
+      if ('function' === typeof formatter) {
+        var val = args[index];
+        match = formatter.call(self, val);
+
+        // now we need to remove `args[index]` since it's inlined in the `format`
+        args.splice(index, 1);
+        index--;
+      }
+      return match;
+    });
+
+    // apply env-specific formatting (colors, etc.)
+    exports.formatArgs.call(self, args);
+
+    var logFn = debug.log || exports.log || console.log.bind(console);
+    logFn.apply(self, args);
+  }
+
+  debug.namespace = namespace;
+  debug.enabled = exports.enabled(namespace);
+  debug.useColors = exports.useColors();
+  debug.color = selectColor(namespace);
+
+  // env-specific initialization logic for debug instances
+  if ('function' === typeof exports.init) {
+    exports.init(debug);
+  }
+
+  return debug;
+}
+
+/**
+ * Enables a debug mode by namespaces. This can include modes
+ * separated by a colon and wildcards.
+ *
+ * @param {String} namespaces
+ * @api public
+ */
+
+function enable(namespaces) {
+  exports.save(namespaces);
+
+  exports.names = [];
+  exports.skips = [];
+
+  var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
+  var len = split.length;
+
+  for (var i = 0; i < len; i++) {
+    if (!split[i]) continue; // ignore empty strings
+    namespaces = split[i].replace(/\*/g, '.*?');
+    if (namespaces[0] === '-') {
+      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+    } else {
+      exports.names.push(new RegExp('^' + namespaces + '$'));
+    }
+  }
+}
+
+/**
+ * Disable debug output.
+ *
+ * @api public
+ */
+
+function disable() {
+  exports.enable('');
+}
+
+/**
+ * Returns true if the given mode name is enabled, false otherwise.
+ *
+ * @param {String} name
+ * @return {Boolean}
+ * @api public
+ */
+
+function enabled(name) {
+  var i, len;
+  for (i = 0, len = exports.skips.length; i < len; i++) {
+    if (exports.skips[i].test(name)) {
+      return false;
+    }
+  }
+  for (i = 0, len = exports.names.length; i < len; i++) {
+    if (exports.names[i].test(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Coerce `val`.
+ *
+ * @param {Mixed} val
+ * @return {Mixed}
+ * @api private
+ */
+
+function coerce(val) {
+  if (val instanceof Error) return val.stack || val.message;
+  return val;
+}
+
+},{"ms":16}],16:[function(require,module,exports){
+/**
+ * Helpers.
+ */
+
+var s = 1000;
+var m = s * 60;
+var h = m * 60;
+var d = h * 24;
+var y = d * 365.25;
+
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} [options]
+ * @throws {Error} throw an error if val is not a non-empty string or a number
+ * @return {String|Number}
+ * @api public
+ */
+
+module.exports = function(val, options) {
+  options = options || {};
+  var type = typeof val;
+  if (type === 'string' && val.length > 0) {
+    return parse(val);
+  } else if (type === 'number' && isNaN(val) === false) {
+    return options.long ? fmtLong(val) : fmtShort(val);
+  }
+  throw new Error(
+    'val is not a non-empty string or a valid number. val=' +
+      JSON.stringify(val)
+  );
+};
+
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function parse(str) {
+  str = String(str);
+  if (str.length > 100) {
+    return;
+  }
+  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
+    str
+  );
+  if (!match) {
+    return;
+  }
+  var n = parseFloat(match[1]);
+  var type = (match[2] || 'ms').toLowerCase();
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'yrs':
+    case 'yr':
+    case 'y':
+      return n * y;
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d;
+    case 'hours':
+    case 'hour':
+    case 'hrs':
+    case 'hr':
+    case 'h':
+      return n * h;
+    case 'minutes':
+    case 'minute':
+    case 'mins':
+    case 'min':
+    case 'm':
+      return n * m;
+    case 'seconds':
+    case 'second':
+    case 'secs':
+    case 'sec':
+    case 's':
+      return n * s;
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
+    case 'ms':
+      return n;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtShort(ms) {
+  if (ms >= d) {
+    return Math.round(ms / d) + 'd';
+  }
+  if (ms >= h) {
+    return Math.round(ms / h) + 'h';
+  }
+  if (ms >= m) {
+    return Math.round(ms / m) + 'm';
+  }
+  if (ms >= s) {
+    return Math.round(ms / s) + 's';
+  }
+  return ms + 'ms';
+}
+
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtLong(ms) {
+  return plural(ms, d, 'day') ||
+    plural(ms, h, 'hour') ||
+    plural(ms, m, 'minute') ||
+    plural(ms, s, 'second') ||
+    ms + ' ms';
+}
+
+/**
+ * Pluralization helper.
+ */
+
+function plural(ms, n, name) {
+  if (ms < n) {
+    return;
+  }
+  if (ms < n * 1.5) {
+    return Math.floor(ms / n) + ' ' + name;
+  }
+  return Math.ceil(ms / n) + ' ' + name + 's';
+}
+
+},{}]},{},[5]);
