@@ -15,6 +15,8 @@ var c1 = new Code();
 var repeatTimer;
 var repeatTimer1;
 var meyda;
+var effectdata;
+var start_time;
 
 var Pico = function() {
 
@@ -50,7 +52,7 @@ var Pico = function() {
     if (args.mode === undefined) options.mode = "dtw";
     else options.mode = args.mode;
 
-    if (args.inputType === undefined) inputState.type = "mic";
+    if (args.inputType === undefined) inputState.type = "aud";
     else {
       inputState.type = args.inputType;
       inputState.bgm = args.bgm;
@@ -71,17 +73,18 @@ var Pico = function() {
 
     var audionum;
     var data = [];
-    var effectdata = {};
+    //var effectdata = {};
+    effectdata = {};
 
     //mic
-    if (inputState.type == "mic" && inputState.inputOn == false) {
-      var inputData = function func(){
-         usingMic(inputState);
+    if (inputState.type == "audio" && inputState.inputOn == false) {
+      var inputData = function func() {
+        usingAudio(inputState);
       }
     }
-    if (inputState.type == "music" && inputState.inputOn == false) {
-      var inputData = function func(){
-        usingMusic(inputState);
+    if (inputState.type == "audio" && inputState.inputOn == false) {
+      var inputData = function func() {
+        usingAudio(inputState);
       }
     }
     c1.addfunc(inputData);
@@ -117,12 +120,12 @@ var Pico = function() {
 };
 
 //playしたら終わるモード
-function usingMusic(inputState) {
+function usingAudio(inputState) {
   audio.inputsound = new Audio();
   audio.inputsound.src = inputState.bgm;
   audio.inputsound.crossOrigin = "anonymous";
   audio.inputsound.addEventListener('loadstart', function() {
-    console.log("Music loaded!");
+    console.log("Audio file loaded!");
     source.input = acontext.createMediaElementSource(audio.inputsound);
     source.input.connect(acontext.destination);
     inputState.inputOn = true;
@@ -130,6 +133,7 @@ function usingMusic(inputState) {
   });
 
   audio.inputsound.addEventListener('play', function() {
+    start_time = acontext.currentTime;
     c.execfuncs();
   });
 
@@ -171,67 +175,6 @@ function checkSpectrum(options) {
   else return false;
 }
 
-//sound effect
-function loadAudio(filename, data, options) {
-  audio.soundeffect = new Audio();
-  audio.soundeffect.src = filename;
-  audio.soundeffect.crossOrigin = "anonymous";
-  var featurename = options.featureExtractors[0];
-  var checkspec = checkSpectrum(options);
-
-  /*
-  //特徴量offline計算
-  loadEffectAudio(filename, function(buffer) {
-    signal = buffer.getChannelData(0);
-    var maxframe = Math.ceil(signal.length / options.bufferSize) - 1; //フレーム数
-
-    //フレーム処理
-    data = [];
-    var startframe = 0;
-    var endframe = startframe + options.bufferSize;
-    Meyda.bufferSize = options.bufferSize;
-
-    for (var n = 0; n < maxframe; n++) {
-      var features = Meyda.extract(featurename, signal.slice(startframe, endframe));
-      if (checkspec == true) features = specNormalization(features, options);
-      data.push(features);
-      startframe = startframe + options.bufferSize;
-      endframe = startframe + options.bufferSize;
-    }
-  });
-  */
-
-  source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
-  options.source = source.soundeffect;
-
-  var featurename = options.featureExtractors[0];
-  console.log("Please wait until calculation of spectrogram is over.");
-
-  meyda = Meyda.createMeydaAnalyzer(options);
-  audio.soundeffect.play();
-  meyda.start(featurename);
-
-  var checkspec = checkSpectrum(options);
-
-  audio.soundeffect.addEventListener('playing', function() {
-    repeatTimer1 = setInterval(function() {
-      var features = meyda.get(featurename);
-      if (features != null) {
-        if (checkspec == true) features = specNormalization(features, options);
-        //features = features.slice(0, parseInt(options.bufferSize / 2));
-        data.push(features);
-      }
-    }, 1000 * options.framesec)
-  });
-
-  audio.soundeffect.addEventListener('ended', function() {
-    meyda.stop();
-    clearInterval(repeatTimer1);
-    c1.execfuncs();
-  });
-  
-}
-
 function loadEffectAudio(audiofile, callback) {
   var request = new XMLHttpRequest();
   request.open('GET', audiofile, true);
@@ -245,18 +188,83 @@ function loadEffectAudio(audiofile, callback) {
   request.send();
 }
 
-function powerSearch(value) {
-  var n = 1;
-  while (value > Math.pow(2, n)) {
-    n++;
-  }
-  return Math.pow(2, n);
+//sound effect
+function loadAudio(filename, data, options) {
+  //信号を特徴量zeropadding
+  var checkspec = checkSpectrum(options);
+  var signal;
+  var framesize = 48000 * options.framesec;
+
+  loadEffectAudio(filename, function(buffer) {
+    signal = buffer.getChannelData(0);
+    var maxframe = Math.ceil(signal.length/ framesize)-1; //フレーム数
+
+    //フレーム処理
+    Meyda.bufferSize = options.bufferSize;
+    var startframe = 0;
+    var endframe = startframe + framesize;
+
+    for (var n = 0; n < maxframe; n++) {
+      var pad = new Array(options.bufferSize).fill(0);
+      var padtmp = signal.slice(startframe, endframe);
+      for (var loop = 0; loop < padtmp.length; loop++)
+        pad[loop] = padtmp[loop];
+      var features = Meyda.extract(options.featureExtractors[0], pad);
+      if (checkspec == true) features = specNormalization(features, options);
+      data.push(features);
+      startframe = startframe + framesize;
+      endframe = startframe + framesize;
+      if (n == maxframe-1) {
+        //localStorage.setItem("data", JSON.stringify(data));
+        c1.execfuncs();
+      }
+    }
+  });
+
+  //c1.execfuncs();
+
+  //WebAudioAPIモード
+  /*
+    audio.soundeffect = new Audio();
+    audio.soundeffect.src = filename;
+    audio.soundeffect.crossOrigin = "anonymous";
+    var featurename = options.featureExtractors[0];
+    var checkspec = checkSpectrum(options);
+
+      audio.soundeffect.addEventListener('loadstart', function () {
+        source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
+        options.source = source.soundeffect;
+        meyda = Meyda.createMeydaAnalyzer(options);
+        audio.soundeffect.play();
+      });
+
+      audio.soundeffect.addEventListener('playing', function() {
+        repeatTimer1 = setInterval(function() {
+          var features = meyda.get(featurename);
+          console.log(features);
+          if (features != null) {
+            if (checkspec == true) features = specNormalization(features, options);
+            data.push(features);
+          }
+        }, 1000 * options.framesec)
+
+      });
+
+    audio.soundeffect.addEventListener('ended', function() {
+        clearInterval(repeatTimer1);
+        console.log(data);
+        meyda.stop();
+        //localStorage.setItem("data", JSON.stringify(data));
+        c1.execfuncs();
+      });
+  */
 }
+
 //costCalculation
 function costCalculation(effectdata, options, callback) {
+
   var RingBufferSize;
   var maxnum;
-
   options.source = source.input;
   console.log(options);
   var checkspec = checkSpectrum(options);
@@ -269,10 +277,10 @@ function costCalculation(effectdata, options, callback) {
         maxnum = effectdata[keyString].length;
     }
   }
-  //if (options.mode == "dtw") maxnum = maxnum * 1.5;
   RingBufferSize = maxnum;
 
   meyda = Meyda.createMeydaAnalyzer(options);
+
   console.log("calculating cost");
   meyda.start(options.featureExtractors);
 
@@ -287,11 +295,9 @@ function costCalculation(effectdata, options, callback) {
       var features = meyda.get(options.featureExtractors[0]);
       if (features != null) {
         if (checkspec == true) features = specNormalization(features, options);
-        //features = features.slice(0, parseInt(options.bufferSize / 2));
         buff.add(features);
       }
     }, 1000 * options.framesec)
-
     //cost
     repeatTimer = setInterval(function() {
       var buflen = buff.getCount();
@@ -307,7 +313,11 @@ function costCalculation(effectdata, options, callback) {
             cost.push(tmp);
           }
         }
-        if (callback != null) callback(cost);
+        if (callback != null) {
+          var tt =  acontext.currentTime - start_time;
+          callback(cost, tt);
+          //console.log(acontext.currentTime - start_time);
+        }
       }
     }, 1000 * options.duration)
 
@@ -331,7 +341,9 @@ function costCalculation(effectdata, options, callback) {
       buflen = buff.getCount();
       if (buflen >= RingBufferSize) {
         if (callback != null) {
-          callback(cost);
+          var tt =  acontext.currentTime - start_time;
+          callback(cost, tt);
+          //console.log(acontext.currentTime - start_time);
         }
       }
     }, 1000 * options.duration)
@@ -361,7 +373,6 @@ function distCalculation(effectdata, buff, effectlen, BufferSize) {
   return d;
 }
 
-
 var RingBuffer = function(bufferCount) {
   if (bufferCount === undefined) bufferCount = 0;
   this.buffer = new Array(bufferCount);
@@ -388,6 +399,7 @@ RingBuffer.prototype = {
 };
 
 function specNormalization(freq, options) {
+  freq[0] = 0;
   var maxval = Math.max.apply([], freq);
   if (maxval == 0) {
     return freq;
