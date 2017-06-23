@@ -8,7 +8,7 @@ picognizer
 
     //parameter
     option = {
-      bufferSize:Math.pow(2, 10), // fft size (defalt: 4096)
+      bufferSize:Math.pow(2, 10), // fft size (defalt: 1024)
       windowFunc:"hamming", // window function (default: hamming)
       feature:["mfcc"], // features (default: ["powerSpectrum"])
       mode:"direct",  // method for recognition (default: direct)
