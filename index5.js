@@ -24,13 +24,13 @@ window.onload = function () {
 		set_cri_w_bar((latest_cost - offset).toFixed(2));
 	};
 	document.getElementById("coin_button").onclick =	function(){
-		new Audio('Coin.mp3').play();
+		new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3').play();
 	};
 	document.getElementById("1up_button").onclick =	function(){
-		new Audio('1up.mp3').play();
+		new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Gain%20Life.mp3').play();
 	};
 	document.getElementById("field_button").onclick =	function(){
-		new Audio('field.mp3').play();
+		new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Themes/mp3/Overworld.mp3').play();
 	};
 
 	// document.getElementById("load_coin_button").onclick = function(){
