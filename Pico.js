@@ -40,8 +40,6 @@ var Pico = function() {
     if (args === undefined) {
       console.log("Default parameter (bufferSize: 1024, window:hamming, feature: powerSpectrum)");
     }
-    if (args.bufferSize === undefined) options.bufferSize = Math.pow(2, 10);
-    else options.bufferSize = args.bufferSize;
 
     if (args.windowFunc === undefined) options.windowingFunction = "hamming";
     else options.windowingFunction = args.windowFunc;
@@ -66,6 +64,15 @@ var Pico = function() {
     if (args.duration === undefined) options.duration = 1.0;
     else options.duration = args.duration;
 
+    if (args.bufferSize === undefined) options.bufferSize = detectPow(options.framesec*48000);
+    else options.bufferSize = args.bufferSize;
+
+    if (options.bufferSize <= options.framesec*48000){
+      console.log("bufferSize should be a power of 2 greater than %d",options.framesec*48000);
+      options.bufferSize = detectPow(options.framesec*48000);
+      console.log("Set parameter: %d", options.bufferSize);
+    }
+
     return;
   };
 
@@ -82,9 +89,9 @@ var Pico = function() {
         usingAudio(inputState);
       }
     }
-    if (inputState.type == "audio" && inputState.inputOn == false) {
+    if (inputState.type == "mic" && inputState.inputOn == false) {
       var inputData = function func() {
-        usingAudio(inputState);
+        usingMic(inputState);
       }
     }
     c1.addfunc(inputData);
@@ -119,8 +126,17 @@ var Pico = function() {
   };
 };
 
+function detectPow(value) {
+  var n = 0;
+  while (Math.pow(2, n) < value) {
+      n++;
+  }
+  return Math.pow(2,n);
+}
+
 //playしたら終わるモード
 function usingAudio(inputState) {
+
   audio.inputsound = new Audio();
   audio.inputsound.src = inputState.bgm;
   audio.inputsound.crossOrigin = "anonymous";
@@ -133,7 +149,9 @@ function usingAudio(inputState) {
   });
 
   audio.inputsound.addEventListener('play', function() {
+    audio.inputsound.curretTime = 0;
     start_time = acontext.currentTime;
+    console.log(start_time);
     c.execfuncs();
   });
 
@@ -201,6 +219,7 @@ function loadAudio(filename, data, options) {
 
     //フレーム処理
     Meyda.bufferSize = options.bufferSize;
+    var frame = 0;
     var startframe = 0;
     var endframe = startframe + framesize;
 
@@ -214,9 +233,10 @@ function loadAudio(filename, data, options) {
       data.push(features);
       startframe = startframe + framesize;
       endframe = startframe + framesize;
+
       if (n == maxframe-1) {
         //localStorage.setItem("data", JSON.stringify(data));
-        c1.execfuncs();
+          c1.execfuncs();
       }
     }
   });
@@ -286,10 +306,15 @@ function costCalculation(effectdata, options, callback) {
 
   //buffer
   var buff = new RingBuffer(RingBufferSize);
-  clearInterval(repeatTimer);
+  var buflen = buff.getCount();
 
+  //var initarray = Array.apply(null, new Array(options.bufferSize)).map(Number.prototype.valueOf,0);
+  //var initarray = Array.apply(null, new Array(options.bufferSize)).map(function (){ return 0});
+  //for (var n=0; n<buflen; n++) buff.add(initarray);
+  clearInterval(repeatTimer);
   ///////DTW
   if (options.mode == "dtw") {
+
     console.log("========= dtw mode =========");
     setInterval(function() {
       var features = meyda.get(options.featureExtractors[0]);
@@ -300,6 +325,7 @@ function costCalculation(effectdata, options, callback) {
     }, 1000 * options.framesec)
     //cost
     repeatTimer = setInterval(function() {
+      var tt =  acontext.currentTime - start_time;
       var buflen = buff.getCount();
       if (buflen < RingBufferSize) {
         console.log('Now buffering');
@@ -314,17 +340,18 @@ function costCalculation(effectdata, options, callback) {
           }
         }
         if (callback != null) {
-          var tt =  acontext.currentTime - start_time;
-          callback(cost, tt);
-          //console.log(acontext.currentTime - start_time);
+          callback(cost);
+          //callback(cost, tt);
         }
       }
     }, 1000 * options.duration)
 
   }
   if (options.mode == "direct") {
+
     console.log("========= direct comparison mode =========");
     setInterval(function() {
+
       var features = meyda.get(options.featureExtractors[0]);
       if (features != null) {
         if (checkspec == true) features = specNormalization(features, options);
@@ -338,12 +365,12 @@ function costCalculation(effectdata, options, callback) {
 
     //cost
     repeatTimer = setInterval(function() {
+      var tt =  acontext.currentTime - start_time;
       buflen = buff.getCount();
       if (buflen >= RingBufferSize) {
         if (callback != null) {
-          var tt =  acontext.currentTime - start_time;
-          callback(cost, tt);
-          //console.log(acontext.currentTime - start_time);
+          //callback(cost, tt);
+          callback(cost);
         }
       }
     }, 1000 * options.duration)
