@@ -5,51 +5,33 @@ window.onload = function () {
 
 	//Picoganizer parameter
 	option = {
-		bufferSize:Math.pow(2, 10), //fft size (defalt:1024)
+		bufferSize:Math.pow(2, 11), //fft size (defalt:1024)
 		windowFunc:"rect", //nooverlapのため
-		mode:"dtw",  //comparison
- 		inputType:"music",
-		bgm:"audio/test_overworld.wav",
-//		feature:["mfcc"],
-		framesec:0.02,
-		duration:1.0
+		mode:"direct",  //comparison
+		//mode:"dtw",  //comparison
+ 		inputType:"mic",
+		//bgm:"audio/set1/03.wav",
+		//		feature:["mfcc"],
+		framesec:0.04,
+		duration:0.04
 	};
-	P.init(option); //パラメータ設定 (初期化)
+	P.init(option); //パラメータ設var定 (初期化)
 
-	/*
-	//check ローカル1音: OK
-	P.recognized('1up.mp3', function(cost){
-		console.log("gainlife cost: " + cost.toFixed(2));
-	});
-	*/
-
-
-	//check ローカル2音: OK
-	/*var audiofile = ['Coin.mp3', '1up.mp3'];
-	P.recognized(audiofile, function(cost){
-		console.log("coin cost: " + cost[0].toFixed(2));
-		console.log("gainlife cost: " + cost[1].toFixed(2));
-	});
-	*/
-
-	var ts = 0;
-	var recog = 0;
-	var threshold = 16;
+	var tt = 0;
 	var str;
+	var t = null;
 
-	//var audiofile = ['Coin.mp3', 'http://jsrun.it/assets/A/Q/q/J/AQqJ4.mp3'];
-
-	P.recognized('https://picog.azurewebsites.net/Coin.mp3', function(cost){
-		//console.log("coin cost: " + cost.toFixed(2));
-		ts += option.duration;
-		if (cost <= threshold) recog = 1;
-		else recog = 0;
-		str = $("#content").val() + ts.toFixed(2)+"\t"+recog.toFixed()+"\n";
-
+	//P.recognized('./audio/effect/Coin.wav', function(cost, t){
+	//P.recognized('./audio/effect/Jump Small.wav', function(cost,t){
+	P.recognized('./audio/effect/Gain Life.wav', function(cost){
+		//tt += option.duration;
+		str = $("#content").val() + "\t"+cost.toFixed(2)+"\n";
+		//str = $("#content").val() + t.toFixed(3) + "\t"+cost.toFixed(2)+"\n";
+		///str = $("#content").val() + tt.toFixed(3)+"\t"+cost.toFixed(2)+"\n";
 
 		$("#content").keyup(function(){
 			$("#content").val(str);
-			$("#text").val("cost:"+ cost.toFixed(2));
+			//$("#text").val("cost:"+ cost.toFixed(2));
 		});
 		$("#content").keyup();
 
@@ -62,7 +44,7 @@ window.onload = function () {
 			P.stop();
 	});
 	$("#clear").click(function(){
-			ts = 0;
+			tt = 0;
 			str ="";
 			$("#content").val(str);
 	});
