@@ -70,7 +70,7 @@ var Pico = function() {
     if (options.bufferSize <= options.framesec*48000){
       console.log("bufferSize should be a power of 2 greater than %d",options.framesec*48000);
       options.bufferSize = detectPow(options.framesec*48000);
-      console.log("Set parameter: %d", options.bufferSize);
+      console.log("Set bufferSize: %d", options.bufferSize);
     }
 
     return;
@@ -80,7 +80,6 @@ var Pico = function() {
 
     var audionum;
     var data = [];
-    //var effectdata = {};
     effectdata = {};
 
     //mic
@@ -149,9 +148,7 @@ function usingAudio(inputState) {
   });
 
   audio.inputsound.addEventListener('play', function() {
-    audio.inputsound.curretTime = 0;
     start_time = acontext.currentTime;
-    console.log(start_time);
     c.execfuncs();
   });
 
@@ -215,7 +212,7 @@ function loadAudio(filename, data, options) {
 
   loadEffectAudio(filename, function(buffer) {
     signal = buffer.getChannelData(0);
-    var maxframe = Math.ceil(signal.length/ framesize)-1; //フレーム数
+    var maxframe = Math.ceil(signal.length/ framesize); //フレーム数
 
     //フレーム処理
     Meyda.bufferSize = options.bufferSize;
@@ -241,43 +238,6 @@ function loadAudio(filename, data, options) {
     }
   });
 
-  //c1.execfuncs();
-
-  //WebAudioAPIモード
-  /*
-    audio.soundeffect = new Audio();
-    audio.soundeffect.src = filename;
-    audio.soundeffect.crossOrigin = "anonymous";
-    var featurename = options.featureExtractors[0];
-    var checkspec = checkSpectrum(options);
-
-      audio.soundeffect.addEventListener('loadstart', function () {
-        source.soundeffect = acontext.createMediaElementSource(audio.soundeffect);
-        options.source = source.soundeffect;
-        meyda = Meyda.createMeydaAnalyzer(options);
-        audio.soundeffect.play();
-      });
-
-      audio.soundeffect.addEventListener('playing', function() {
-        repeatTimer1 = setInterval(function() {
-          var features = meyda.get(featurename);
-          console.log(features);
-          if (features != null) {
-            if (checkspec == true) features = specNormalization(features, options);
-            data.push(features);
-          }
-        }, 1000 * options.framesec)
-
-      });
-
-    audio.soundeffect.addEventListener('ended', function() {
-        clearInterval(repeatTimer1);
-        console.log(data);
-        meyda.stop();
-        //localStorage.setItem("data", JSON.stringify(data));
-        c1.execfuncs();
-      });
-  */
 }
 
 //costCalculation
@@ -285,8 +245,8 @@ function costCalculation(effectdata, options, callback) {
 
   var RingBufferSize;
   var maxnum;
+
   options.source = source.input;
-  console.log(options);
   var checkspec = checkSpectrum(options);
   var effectlen = Object.keys(effectdata).length;
 
@@ -302,20 +262,20 @@ function costCalculation(effectdata, options, callback) {
   meyda = Meyda.createMeydaAnalyzer(options);
 
   console.log("calculating cost");
-  meyda.start(options.featureExtractors);
-
   //buffer
   var buff = new RingBuffer(RingBufferSize);
-  var buflen = buff.getCount();
-
   //var initarray = Array.apply(null, new Array(options.bufferSize)).map(Number.prototype.valueOf,0);
-  //var initarray = Array.apply(null, new Array(options.bufferSize)).map(function (){ return 0});
-  //for (var n=0; n<buflen; n++) buff.add(initarray);
+  var initarray = Array.apply(null, new Array(options.bufferSize/2)).map(function (){ return 0});
+  for (var n=0; n<RingBufferSize; n++) buff.add(initarray);
+  //console.log(buff);
+  //buff.count = 0;
+
   clearInterval(repeatTimer);
-  ///////DTW
+
   if (options.mode == "dtw") {
 
     console.log("========= dtw mode =========");
+    meyda.start(options.featureExtractors);
     setInterval(function() {
       var features = meyda.get(options.featureExtractors[0]);
       if (features != null) {
@@ -325,11 +285,10 @@ function costCalculation(effectdata, options, callback) {
     }, 1000 * options.framesec)
     //cost
     repeatTimer = setInterval(function() {
-      var tt =  acontext.currentTime - start_time;
       var buflen = buff.getCount();
-      if (buflen < RingBufferSize) {
-        console.log('Now buffering');
-      } else {
+      //if (buflen < RingBufferSize) {
+      //  console.log('Now buffering');
+      //} else {
         if (effectlen == 1) {
           var cost = dtw.compute(buff.buffer, effectdata[0]);
         } else {
@@ -340,15 +299,16 @@ function costCalculation(effectdata, options, callback) {
           }
         }
         if (callback != null) {
-          callback(cost);
+          var tt = acontext.currentTime-start_time;
           //callback(cost, tt);
+          callback(cost);
         }
-      }
+      //}
     }, 1000 * options.duration)
 
   }
   if (options.mode == "direct") {
-
+    meyda.start(options.featureExtractors);
     console.log("========= direct comparison mode =========");
     setInterval(function() {
 
@@ -358,9 +318,9 @@ function costCalculation(effectdata, options, callback) {
         buff.add(features);
       }
       buflen = buff.getCount();
-      if (buflen >= RingBufferSize) {
+      //if (buflen >= RingBufferSize) {
         cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
-      }
+      //}
     }, 1000 * options.framesec)
 
     //cost
