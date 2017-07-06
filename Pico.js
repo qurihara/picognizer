@@ -16,7 +16,6 @@ var repeatTimer;
 var repeatTimer1;
 var meyda;
 var effectdata;
-var start_time;
 
 var Pico = function() {
 
@@ -205,14 +204,14 @@ function loadEffectAudio(audiofile, callback) {
 
 //sound effect
 function loadAudio(filename, data, options) {
-  //信号を特徴量zeropadding
+
   var checkspec = checkSpectrum(options);
   var signal;
   var framesize = 48000 * options.framesec;
 
   loadEffectAudio(filename, function(buffer) {
     signal = buffer.getChannelData(0);
-    var maxframe = Math.ceil(signal.length/ framesize); //フレーム数
+    var maxframe = Math.ceil(signal.length/ framesize);
 
     //フレーム処理
     Meyda.bufferSize = options.bufferSize;
@@ -232,7 +231,6 @@ function loadAudio(filename, data, options) {
       endframe = startframe + framesize;
 
       if (n == maxframe-1) {
-        //localStorage.setItem("data", JSON.stringify(data));
           c1.execfuncs();
       }
     }
@@ -264,12 +262,7 @@ function costCalculation(effectdata, options, callback) {
   console.log("calculating cost");
   //buffer
   var buff = new RingBuffer(RingBufferSize);
-  //var initarray = Array.apply(null, new Array(options.bufferSize)).map(Number.prototype.valueOf,0);
-  var initarray = Array.apply(null, new Array(options.bufferSize/2)).map(function (){ return 0});
-  for (var n=0; n<RingBufferSize; n++) buff.add(initarray);
-  //console.log(buff);
-  //buff.count = 0;
-
+  
   clearInterval(repeatTimer);
 
   if (options.mode == "dtw") {
@@ -286,9 +279,9 @@ function costCalculation(effectdata, options, callback) {
     //cost
     repeatTimer = setInterval(function() {
       var buflen = buff.getCount();
-      //if (buflen < RingBufferSize) {
-      //  console.log('Now buffering');
-      //} else {
+      if (buflen < RingBufferSize) {
+        console.log('Now buffering');
+      } else {
         if (effectlen == 1) {
           var cost = dtw.compute(buff.buffer, effectdata[0]);
         } else {
@@ -299,11 +292,9 @@ function costCalculation(effectdata, options, callback) {
           }
         }
         if (callback != null) {
-          var tt = acontext.currentTime-start_time;
-          //callback(cost, tt);
           callback(cost);
         }
-      //}
+      }
     }, 1000 * options.duration)
 
   }
@@ -318,9 +309,9 @@ function costCalculation(effectdata, options, callback) {
         buff.add(features);
       }
       buflen = buff.getCount();
-      //if (buflen >= RingBufferSize) {
+      if (buflen >= RingBufferSize) {
         cost = distCalculation(effectdata, buff, effectlen, RingBufferSize);
-      //}
+      }
     }, 1000 * options.framesec)
 
     //cost
@@ -329,7 +320,6 @@ function costCalculation(effectdata, options, callback) {
       buflen = buff.getCount();
       if (buflen >= RingBufferSize) {
         if (callback != null) {
-          //callback(cost, tt);
           callback(cost);
         }
       }
