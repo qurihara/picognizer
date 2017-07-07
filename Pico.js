@@ -49,7 +49,7 @@ var Pico = function() {
     if (args.mode === undefined) options.mode = "dtw";
     else options.mode = args.mode;
 
-    if (args.inputType === undefined) inputState.type = "aud";
+    if (args.inputType === undefined) inputState.type = "mic";
     else {
       inputState.type = args.inputType;
       inputState.bgm = args.bgm;
@@ -87,7 +87,7 @@ var Pico = function() {
         usingAudio(inputState);
       }
     }
-    if (inputState.type == "mic" && inputState.inputOn == false) {
+    if (inputState.type == "mic") {
       var inputData = function func() {
         usingMic(inputState);
       }
@@ -262,7 +262,7 @@ function costCalculation(effectdata, options, callback) {
   console.log("calculating cost");
   //buffer
   var buff = new RingBuffer(RingBufferSize);
-  
+
   clearInterval(repeatTimer);
 
   if (options.mode == "dtw") {
