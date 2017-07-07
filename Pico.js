@@ -147,7 +147,6 @@ function usingAudio(inputState) {
   });
 
   audio.inputsound.addEventListener('play', function() {
-    start_time = acontext.currentTime;
     c.execfuncs();
   });
 
@@ -316,7 +315,6 @@ function costCalculation(effectdata, options, callback) {
 
     //cost
     repeatTimer = setInterval(function() {
-      var tt =  acontext.currentTime - start_time;
       buflen = buff.getCount();
       if (buflen >= RingBufferSize) {
         if (callback != null) {
