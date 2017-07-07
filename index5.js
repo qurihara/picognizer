@@ -4,6 +4,7 @@ var P = new Pico;
 var cri = 20;
 var offset = 0.01;
 var latest_cost = 0;
+var triggered = false;
 
 function set_cri(val){
 	document.getElementById("val").innerHTML = val;
@@ -124,8 +125,13 @@ function onrecog(cost){
 		{time: t, y: cri}
 	]);
 	if (c < cri){
-		log("recognized.");
-		send();
+		if (triggered === false){
+			log("recognized.");
+			send();
+			triggered = true;
+		}
+	}else{
+		triggered = false;
 	}
 	latest_cost = c;
 }
