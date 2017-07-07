@@ -1,7 +1,7 @@
-function setup(){
+setup = function(){
   console.log("initialized.");
 }
-function onfire(){
+onfire = function(){
   console.log("recognized!!");
   //alert("recognized!");
   document.bgColor = 'red';
