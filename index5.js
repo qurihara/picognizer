@@ -18,6 +18,9 @@ function set_cri_w_bar(val){
 
 window.onload = function () {
 
+	$("#stop_button").click(function(){
+			P.stop();
+	});
 	document.getElementById("bar_cri").onchange = function(){
 		set_cri(this.value);
 	};
