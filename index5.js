@@ -124,7 +124,7 @@ function onrecog(cost){
 	var cc = c;
 	if (cc>100) cc = 100;
 	// log("coin cost: " + c);
-	console.log("coin cost: " + c);
+	//console.log("coin cost: " + c);
 	chart.push([
 		{time: t, y: cc},
 		{time: t, y: cri}
