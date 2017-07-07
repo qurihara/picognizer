@@ -25,7 +25,7 @@ window.onload = function () {
 		set_cri_w_bar((latest_cost - offset).toFixed(2));
 	};
 	document.getElementById("fire_button").onclick = function(){
-		log("Manually fired.");
+		log("manually fired.");
 		send();
 	};
 	document.getElementById("coin_button").onclick =	function(){
@@ -216,13 +216,19 @@ function conn_init(){
 	if(surl !== null){
 		getSubFromUrl(surl,function(){
 			// log("script loaded.");
+			if (script !== ""){
+				eval(script);
+				log("script parsed.");
+				setup();
+				log("script initialized.");
+			}
 		});
 	}
 }
 
 function send(){
 	if (script !== ""){
-		eval(script);
+		onfire();
 		log("script executed.");
 	}
 }
