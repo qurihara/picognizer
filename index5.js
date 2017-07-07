@@ -24,6 +24,10 @@ window.onload = function () {
 	document.getElementById("set_button").onclick = function(){
 		set_cri_w_bar((latest_cost - offset).toFixed(2));
 	};
+	document.getElementById("fire_button").onclick = function(){
+		log("Manually fired.");
+		send();
+	};
 	document.getElementById("coin_button").onclick =	function(){
 		new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3').play();
 	};
@@ -116,6 +120,7 @@ function init_chart(){
 function onrecog(cost){
 	var t = ((new Date()).getTime() / 1000)|0;
 	var c = cost.toFixed(2);
+	document.getElementById("cost").innerHTML = c;
 	var cc = c;
 	if (cc>100) cc = 100;
 	// log("coin cost: " + c);
