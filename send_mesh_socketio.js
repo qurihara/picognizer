@@ -36,4 +36,9 @@ onfire = function(){
     }
   });
   console.log("sent.");
+
+  document.bgColor = 'yellow';
+  setTimeout(function(){
+    document.bgColor = 'white';
+  },500);
 }
