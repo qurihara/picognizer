@@ -83,8 +83,7 @@ window.onload = function () {
 		mode:mod,//"direct",  //comparison
 		feature:[ft],//["mfcc"],
 		framesec:frame,//0.1,
-		duration:dur,//1.0
-		slice:[0,1.5]
+		duration:dur//1.0
 	};
 	console.log("picognizer option: " + JSON.stringify(option));
 	P.init(option); //パラメータ設定 (初期化)
