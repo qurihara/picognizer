@@ -76,6 +76,14 @@ window.onload = function () {
 	if(para["frame"] != null) frame = Number(para["frame"]);
 	var dur = 1.0;
 	if(para["dur"] != null) dur = Number(para["dur"]);
+	var st = 0;
+	var et = 0;
+	var slice = false;
+	if(para["st"] != null && para["et"] != null) {
+		st = Number(para["st"]);
+		et = Number(para["et"]);
+		slice = true;
+	}
 
 	var option = {
 		bufferSize:buf,//Math.pow(2, 10), //fft size (defalt:4096)
@@ -85,6 +93,17 @@ window.onload = function () {
 		framesec:frame,//0.1,
 		duration:dur//1.0
 	};
+	if (slice === true){
+		var option = {
+			bufferSize:buf,//Math.pow(2, 10), //fft size (defalt:4096)
+			windowFunc:wfunc,//"hamming", //
+			mode:mod,//"direct",  //comparison
+			feature:[ft],//["mfcc"],
+			framesec:frame,//0.1,
+			duration:dur,//1.0
+			slice:[st,et]
+		};
+	}
 	console.log("picognizer option: " + JSON.stringify(option));
 	P.init(option); //パラメータ設定 (初期化)
 	// P.init(); //パラメータ設定 (初期化)
