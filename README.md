@@ -8,7 +8,7 @@ picognizer
 
     //parameter
     option = {
-      bufferSize:Math.pow(2, 10), // fft size (defalt: 1024)
+      bufferSize:Math.pow(2, 10), // fft size (defalt: automatic)
       windowFunc:"hamming", // window function (default: hamming)
       feature:["mfcc"], // features (default: ["powerSpectrum"])
       mode:"direct",  // method for recognition (default: direct)
@@ -16,7 +16,7 @@ picognizer
       bgm:"input_audio_name", // filename of input audio without using mic  
       framesec:0.1,  // seconds for a feature extraction (default: 0.02)
       duration:1.0, // seconds for cost calculation (default: 1.0)
-      slice:[0,1.0] // slice time [s] for recognition feature, slice[0] is start and slice[1] is end
+      slice:[0,1.0] // slice time[s] for recognition feature, slice[0] is start and slice[1] is end
     };
     P.init(option); //set parameter
 
