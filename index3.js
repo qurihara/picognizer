@@ -54,7 +54,30 @@ window.onload = function () {
 	// };
 
 	conn_init();
-	P.init(); //パラメータ設定 (初期化)
+	//Picoganizer parameter
+	var buf = 1024;
+	if(para["buf"] != null) buf = Number(para["buf"]);
+	var wfunc = "hamming";
+	if(para["wfunc"] != null) wfunc = para["wfunc"];
+	var mod = "direct";
+	if(para["mode"] != null) mod = para["mode"];
+	var ft = "powerSpectrum";
+	if(para["ft"] != null) ft = para["ft"];
+	var frame = 0.1;
+	if(para["frame"] != null) frame = Number(para["frame"]);
+	var dur = 1.0;
+	if(para["dur"] != null) dur = Number(para["dur"]);
+
+	var option = {
+		bufferSize:buf,//Math.pow(2, 10), //fft size (defalt:4096)
+		windowFunc:wfunc,//"hamming", //
+		mode:mod,//"direct",  //comparison
+		feature:[ft],//["mfcc"],
+		framesec:frame,//0.1,
+		duration:dur//1.0
+	};
+	console.log("picognizer option: " + JSON.stringify(option));
+	P.init(option); //パラメータ設定 (初期化)
 
 	init_recording();
 

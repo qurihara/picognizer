@@ -4,6 +4,7 @@ var P = new Pico;
 var cri = 20;
 var offset = 0.01;
 var latest_cost = 0;
+var triggered = false;
 
 function set_cri(val){
 	document.getElementById("val").innerHTML = val;
@@ -17,11 +18,18 @@ function set_cri_w_bar(val){
 
 window.onload = function () {
 
+	$("#stop_button").click(function(){
+			P.stop();
+	});
 	document.getElementById("bar_cri").onchange = function(){
 		set_cri(this.value);
 	};
 	document.getElementById("set_button").onclick = function(){
 		set_cri_w_bar((latest_cost - offset).toFixed(2));
+	};
+	document.getElementById("fire_button").onclick = function(){
+		log("manually fired.");
+		send();
 	};
 	document.getElementById("coin_button").onclick =	function(){
 		new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3').play();
@@ -116,17 +124,23 @@ function init_chart(){
 function onrecog(cost){
 	var t = ((new Date()).getTime() / 1000)|0;
 	var c = cost.toFixed(2);
+	document.getElementById("cost").innerHTML = c;
 	var cc = c;
 	if (cc>100) cc = 100;
 	// log("coin cost: " + c);
-	console.log("coin cost: " + c);
+	//console.log("coin cost: " + c);
 	chart.push([
 		{time: t, y: cc},
 		{time: t, y: cri}
 	]);
 	if (c < cri){
-		log("recognized.");
-		send();
+		if (triggered === false){
+			log("recognized.");
+			send();
+			triggered = true;
+		}
+	}else{
+		triggered = false;
 	}
 	latest_cost = c;
 }
@@ -206,13 +220,19 @@ function conn_init(){
 	if(surl !== null){
 		getSubFromUrl(surl,function(){
 			// log("script loaded.");
+			if (script !== ""){
+				eval(script);
+				log("script parsed.");
+				setup();
+				log("script initialized.");
+			}
 		});
 	}
 }
 
 function send(){
 	if (script !== ""){
-		eval(script);
+		onfire();
 		log("script executed.");
 	}
 }
