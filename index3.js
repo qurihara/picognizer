@@ -23,15 +23,15 @@ window.onload = function () {
 	document.getElementById("set_button").onclick = function(){
 		set_cri_w_bar((latest_cost - offset).toFixed(2));
 	};
-	document.getElementById("coin_button").onclick =	function(){
-		new Audio('Coin.mp3').play();
-	};
-	document.getElementById("1up_button").onclick =	function(){
-		new Audio('1up.mp3').play();
-	};
-	document.getElementById("field_button").onclick =	function(){
-		new Audio('field.mp3').play();
-	};
+	// document.getElementById("coin_button").onclick =	function(){
+	// 	new Audio('Coin.mp3').play();
+	// };
+	// document.getElementById("1up_button").onclick =	function(){
+	// 	new Audio('1up.mp3').play();
+	// };
+	// document.getElementById("field_button").onclick =	function(){
+	// 	new Audio('field.mp3').play();
+	// };
 
 	// document.getElementById("load_coin_button").onclick = function(){
 	// 	//local file

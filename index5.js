@@ -31,15 +31,15 @@ window.onload = function () {
 		log("manually fired.");
 		send();
 	};
-	document.getElementById("coin_button").onclick =	function(){
-		new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3').play();
-	};
-	document.getElementById("1up_button").onclick =	function(){
-		new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Gain%20Life.mp3').play();
-	};
-	document.getElementById("field_button").onclick =	function(){
-		new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Themes/mp3/Overworld.mp3').play();
-	};
+	// document.getElementById("coin_button").onclick =	function(){
+	// 	new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3').play();
+	// };
+	// document.getElementById("1up_button").onclick =	function(){
+	// 	new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Gain%20Life.mp3').play();
+	// };
+	// document.getElementById("field_button").onclick =	function(){
+	// 	new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Themes/mp3/Overworld.mp3').play();
+	// };
 
 	// document.getElementById("load_coin_button").onclick = function(){
 	// 	//local file
