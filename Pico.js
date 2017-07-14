@@ -294,6 +294,7 @@ function costCalculation(effectdata, options, callback) {
       var buflen = buff.getCount();
       if (average(silbuff.buffer) < 0.0005){
         cost = Infinity;
+        callback(cost);
       }else{
         if (buflen < RingBufferSize) {
           console.log('Now buffering');
@@ -336,6 +337,7 @@ function costCalculation(effectdata, options, callback) {
       buflen = buff.getCount();
       if (average(silbuff.buffer) < 0.0001){
         cost = Infinity;
+        callback(cost);
       }else{
         if (buflen >= RingBufferSize) {
           if (callback != null) {
