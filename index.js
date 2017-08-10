@@ -1,4 +1,4 @@
-var Pico = require('./Pico');
+var Pico = require('Pico');
 var P = new Pico;
 
 window.onload = function () {
