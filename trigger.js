@@ -1,4 +1,4 @@
-var Pico = require('Pico');
+var Pico = require('picognizer');
 var P = new Pico;
 
 var cri = 20;
