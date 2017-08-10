@@ -44,7 +44,7 @@ window.onload = function () {
 	// document.getElementById("load_coin_button").onclick = function(){
 	// 	//local file
 	// 	log("loading : Coin.mp3");
-	// 	P.recognized('Coin.mp3', onrecog);
+	// 	P.oncost('Coin.mp3', onrecog);
 	// 	log("start recognition");
 	// };
 	document.getElementById("load_url_button").onclick = function(){
@@ -53,7 +53,7 @@ window.onload = function () {
 		log("loading :" + t);
 		if (t !== null){
 			document.getElementById("load_url_button").disabled = true;
-			P.recognized(t,onrecog);
+			P.oncost(t,onrecog);
 			log("start recognition");
 		}
 	};
