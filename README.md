@@ -3,7 +3,7 @@ picognizer
 
 
 ## How to use
-    var Pico = require('./Pico');
+    var Pico = require('picognizer');
     var P = new Pico;
 
     //parameter
@@ -20,7 +20,7 @@ picognizer
     };
     P.init(option); //set parameter
 
-    P.recognized(audiofilename, function(cost){
+    P.oncost(audiofilename, function(cost){
       // script
     }
 
