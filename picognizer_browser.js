@@ -1091,7 +1091,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's'
 }
 
-},{}],"Pico":[function(require,module,exports){
+},{}],"picognizer":[function(require,module,exports){
 var DTW = require("./lib/dtw");
 var dist = require("./lib/distanceFunctions/asymmetric.js");
 var Code = require("./code.js");
@@ -1107,16 +1107,15 @@ var mediaStream;
 var c = new Code();
 var c1 = new Code();
 var repeatTimer;
-var repeatTimer1;
 var meyda;
 var effectdata;
 
 var Pico = function() {
 
   options = {
-    "audioContext": acontext, // required
-    "source": null, // required
-    "bufferSize": null, // required
+    "audioContext": acontext,
+    "source": null,
+    "bufferSize": null,
     "windowingFunction": null,
     "featureExtractors": [],
     "framesec": null,
@@ -1172,7 +1171,7 @@ var Pico = function() {
     return;
   };
 
-  this.recognized = function(audiofile, callback) {
+  this.oncost = function(audiofile, callback) {
 
     var audionum;
     var data = [];
@@ -1229,7 +1228,6 @@ function detectPow(value) {
   return Math.pow(2,n);
 }
 
-//playしたら終わるモード
 function usingAudio(inputState) {
 
   audio.inputsound = new Audio();
@@ -1319,7 +1317,7 @@ function loadAudio(filename, data, options) {
         signal = signal.slice(array[0], array[1]);
       }
     }
-    //フレーム処理
+
     Meyda.bufferSize = options.bufferSize;
     var frame = 0;
     var startframe = 0;
@@ -1365,6 +1363,7 @@ function costCalculation(effectdata, options, callback) {
   meyda = Meyda.createMeydaAnalyzer(options);
 
   console.log("calculating cost");
+
   //buffer
   var buff = new RingBuffer(RingBufferSize);
   var silbuff = new RingBuffer(RingBufferSize);
@@ -1383,6 +1382,7 @@ function costCalculation(effectdata, options, callback) {
         buff.add(features);
       }
     }, 1000 * options.framesec)
+
     //cost
     repeatTimer = setInterval(function() {
       var buflen = buff.getCount();

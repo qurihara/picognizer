@@ -21,9 +21,9 @@ window.onload = function () {
 	var str;
 	var t = null;
 
-	//P.recognized('./audio/effect/Coin.wav', function(cost, t){
-	//P.recognized('./audio/effect/Jump Small.wav', function(cost,t){
-	P.recognized('./audio/effect/Gain Life.wav', function(cost){
+	//P.oncost('./audio/effect/Coin.wav', function(cost, t){
+	//P.oncost('./audio/effect/Jump Small.wav', function(cost,t){
+	P.oncost('./audio/effect/Gain Life.wav', function(cost){
 		//tt += option.duration;
 		str = $("#content").val() + "\t"+cost.toFixed(2)+"\n";
 		//str = $("#content").val() + t.toFixed(3) + "\t"+cost.toFixed(2)+"\n";

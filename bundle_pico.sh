@@ -1,2 +1,2 @@
 #!/bin/sh
-browserify -r ./Pico.js:Pico -o picognizer_browser.js
+browserify -r ./picognizer.js:picognizer -o picognizer_browser.js
