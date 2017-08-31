@@ -9,11 +9,11 @@ setup = function(){
   }
   loadScript('http://cdn.octoblu.com/js/meshblu/latest/meshblu.bundle.js',function(e){
     var para,uuid,token,suuid,server,port,debug;
-    uuid="239b55a2-53d7-4ab6-b4b4-04e8bc109266";
-    token="f60f24c45cd37b6b37b53d533ff779f9cf05d550";
-    server="210.129.18.160";
+    uuid="xxx";
+    token="yyy";
+    server="zzz.zzz.zzz.zzz";
     port="80";
-    suuid="239b55a2-53d7-4ab6-b4b4-04e8bc109266";
+    suuid="aaaaa";
     conn = meshblu.createConnection({
     	"uuid": uuid,
     	"token": token,
