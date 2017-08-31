@@ -31,22 +31,10 @@ window.onload = function () {
 		log("manually fired.");
 		send();
 	};
-	// document.getElementById("coin_button").onclick =	function(){
-	// 	new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3').play();
-	// };
-	// document.getElementById("1up_button").onclick =	function(){
-	// 	new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Gain%20Life.mp3').play();
-	// };
-	// document.getElementById("field_button").onclick =	function(){
-	// 	new Audio('https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Themes/mp3/Overworld.mp3').play();
-	// };
-
-	// document.getElementById("load_coin_button").onclick = function(){
-	// 	//local file
-	// 	log("loading : Coin.mp3");
-	// 	P.oncost('Coin.mp3', onrecog);
-	// 	log("start recognition");
-	// };
+	document.getElementById("play_button").onclick = function(){
+		var s = document.getElementById("text_url").value;
+		new Audio(s).play();
+	};
 	document.getElementById("load_url_button").onclick = function(){
 		////load external file
 		var t = document.getElementById("text_url").value;
