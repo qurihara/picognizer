@@ -1,8 +1,8 @@
 setup = function(){
   console.log("initialized.");
-  myEndpoint="xx.yy.zz.aa";
-  myTriggerUuid = "aaaa";
-  myTriggerToken = "bbbb";
+  myEndpoint=para["server"];
+  myTriggerUuid = para["myuuid"];
+  myTriggerToken = para["mytoken"];
   endPointURL = 'http://'+myEndpoint + '/data/'+myTriggerUuid;
 }
 onfire = function(){

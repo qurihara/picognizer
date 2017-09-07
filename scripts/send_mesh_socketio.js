@@ -1,19 +1,11 @@
 setup = function(){
-  function loadScript(filename,cb){
-    var script = document.createElement( 'script' );
-    script.type = 'text/javascript';
-    script.src = filename;
-    script.onload = cb;
-    var firstScript = document.getElementsByTagName( 'script' )[ 0 ];
-    firstScript.parentNode.insertBefore( script, firstScript );
-  }
   loadScript('http://cdn.octoblu.com/js/meshblu/latest/meshblu.bundle.js',function(e){
     var para,uuid,token,suuid,server,port,debug;
-    uuid="xxx";
-    token="yyy";
-    server="zzz.zzz.zzz.zzz";
+    uuid=para["myuuid"];
+    token=para["mutoken"];
+    server=para["server"];
     port="80";
-    suuid="aaaaa";
+    suuid=para["suuid"];
     conn = meshblu.createConnection({
     	"uuid": uuid,
     	"token": token,
