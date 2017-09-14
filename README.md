@@ -2,7 +2,12 @@ Picognizer
 ===============
 
 Picognizer is the 100% JavaScript library for detecting synthesized sounds (e.g. sound effects of video games, replayed speech or music, and sound alerts of home appliances).
-You can run it on your web browser.
+You can run it on your web browser without any server-side systems.
+
+## Demo movie
+https://www.youtube.com/watch?v=-2MtArZAtfg (Japanese)
+
+https://www.youtube.com/watch?v=CoYJmNdxPNY (English)
 
 
 ## Browser example (works best with Firefox on PC/Mac/Android)
@@ -10,11 +15,17 @@ You can run it on your web browser.
 https://qurihara.github.io/picognizer/script.html?cri=48&surl=https://rawgit.com/qurihara/picognizer/master/scripts/bg_red.js&src=https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3&frame=0.04&dur=0.01
 
 This example can detect a famous sound effect of getting a coin in Super Mario Brothers.
+
 Press "Picognize" button and add permission of using your mic.
+
 With "play" button you can play the target sound as an emulation.
+
 The browser's background turnes red when the sound is detected.
+
 With "fire" button you can check what will happen after detection.
+
 Change the slider bar to adjust the threshold.
+
 
 ## Node.js example with beefy
 
