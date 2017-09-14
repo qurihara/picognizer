@@ -1,9 +1,35 @@
-picognizer
+Picognizer
 ===============
 
+Picognizer is the 100% JavaScript library for detecting synthesized sounds (e.g. sound effects of video games, replayed speech or music, and sound alerts of home appliances).
+You can run it on your web browser.
 
-## How to use
+
+## Browser example (works best with Firefox on PC/Mac/Android)
+
+https://qurihara.github.io/picognizer/script.html?cri=48&surl=https://rawgit.com/qurihara/picognizer/master/scripts/bg_red.js&src=https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3&frame=0.04&dur=0.01
+
+This example can detect a famous sound effect of getting a coin in Super Mario Brothers.
+Press "Piognize" button and add permission of using your mic. The browser's background turnes red when the sound is detected.Change the slider bar to adjust the threshold.
+
+## Node.js example with beefy
+
+The current implementation of Picognizer is web-oriented.
+However you can also introduce Picognizer with Node.js coding mannar using beefy[https://www.npmjs.com/package/beefy].
+
+    npm i beefy browserify -g
+    beefy node_beefy_example.js --live --open
+
+Then a browser opens to run the example.
+If you don't use Firefox as your default browser, reopen the page with Firefox.
+
+## How to code
+    // for web browser
     var Pico = require('picognizer');
+    // for Node.js/beefy
+    //var Meyda = require("./lib/meyda.min");
+    //var Pico = require('./picognizer');
+
     var P = new Pico;
 
     //parameter
@@ -27,14 +53,3 @@ picognizer
 Please see [meyda wiki][] for parameters (bufferSize, windowFunc, feature) on features since meyda is used for feature extraction.
 
 [meyda wiki]:https://github.com/meyda/meyda/wiki "meyda wiki"
-
-## Browser example (works best with Firefox on PC/Mac/Android)
-
-https://qurihara.github.io/picognizer/script.html?cri=48&surl=https://rawgit.com/qurihara/picognizer/master/scripts/bg_red.js&src=https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3&frame=0.04&dur=0.01
-
-## Node.js example with beefy
-    npm i beefy browserify -g
-    beefy node_beefy_example.js --live --open
-
-Then a browser opens to run the example.
-If you don't use Firefox as your default browser, reopen the page with Firefox.
