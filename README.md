@@ -15,15 +15,10 @@ https://www.youtube.com/watch?v=CoYJmNdxPNY (English)
 https://qurihara.github.io/picognizer/script.html?cri=48&surl=https://rawgit.com/qurihara/picognizer/master/scripts/bg_red.js&src=https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3&frame=0.04&dur=0.01
 
 This example can detect a famous sound effect of getting a coin in Super Mario Brothers.
-
 Press "Picognize" button and add permission of using your mic.
-
 With "play" button you can play the target sound as an emulation.
-
 The browser's background turnes red when the sound is detected.
-
 With "fire" button you can check what will happen after detection.
-
 Change the slider bar to adjust the threshold.
 
 
