@@ -62,18 +62,18 @@ See node_beefy_example.js for checking up the actual coding mannar.
       // do something with cost      
     }
 
-#### option
-###### bufferSize
-"buffeSize" is the size of the feature to extract. When you use spectral features, it is necessary to a power of two greater than samples in framesec.Å@If bufferSize is undefined, it is automatically calculated according to the framesec.
+### option
+#### bufferSize
+"buffeSize" is the size of the feature to extract. When you use spectral features, it is necessary to a power of two greater than samples in framesec. If bufferSize is undefined, it is automatically calculated according to the framesec.
 
-###### mode
+#### mode
 It is an option to set cost calculation algorithms.
 The target feature vector and the input feature vector are calculated using dynamic time warping as "dtw" or direct comparison "direct."
 
-###### inputType
+#### inputType
 You can select either input data from the microphone as "mic" or the audio file as "audio". If "audio" is defined, it is necessary to specify the audio file with "file."
 
-###### slice
+#### slice
 If the sound source of the target is long, you can cut out the specified seconds and extract feature vectors. The slice [0] represents the start time and slice [1] accounts for the end time. Please describe it all in seconds.
 
 Please see [meyda wiki][] for parameters (bufferSize, windowFunc, feature) on features since meyda is used for feature extraction.
