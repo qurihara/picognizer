@@ -46,15 +46,15 @@ See node_beefy_example.js for checking up the actual coding mannar.
 
     //parameter
     option = {
-      bufferSize:Math.pow(2, 10), // fft size (defalt: automatic)
-      windowFunc:"hamming", // window function (default: hamming)
-      feature:["mfcc"], // features (default: ["powerSpectrum"])
-      mode:"direct",  // method for recognition (default: direct)
-      inputType:"audio", // if you input audio without using mic (default: mic)
-      bgm:"input_audio_name", // filename of input audio without using mic  
-      framesec:0.1,  // seconds for a feature extraction (default: 0.02)
-      duration:1.0, // seconds for cost calculation (default: 1.0)
-      slice:[0,1.0] // slice time[s] for recognition feature, slice[0] is start and slice[1] is end
+      bufferSize:Math.pow(2, 10), // Feature buffer size (defalt: automatic)
+      windowFunc:"hamming", // Window function (default: hamming)
+      feature:["mfcc"], // Feature name (default: ["powerSpectrum"])
+      mode:"direct",  // Cost calculation algorithms (default: direct)
+      inputType:"audio", // Input type (default: mic)
+      file:"input_audio_name", // Filename of input audio when you use inputType:"audio"
+      framesec:0.1,  // Interval seconds for each feature extraction (default: 0.02)
+      duration:1.0, // Interval seconds for each cost calculation (default: 1.0)
+      slice:[0,1.0] // Slice time[s] for the target feature, slice[0] is start and slice[1] is end
     };
     P.init(option); //set parameter
 
@@ -62,6 +62,20 @@ See node_beefy_example.js for checking up the actual coding mannar.
       // do something with cost      
     }
 
+#### option
+###### bufferSize
+"buffeSize" is the size of the feature to extract. When you use spectral features, it is necessary to a power of two greater than samples in framesec.Å@If bufferSize is undefined, it is automatically calculated according to the framesec.
+
+###### mode
+It is an option to set cost calculation algorithms.
+The target feature vector and the input feature vector are calculated using dynamic time warping as "dtw" or direct comparison "direct."
+
+###### inputType
+You can select either input data from the microphone as "mic" or the audio file as "audio". If "audio" is defined, it is necessary to specify the audio file with "file."
+
+###### slice
+If the sound source of the target is long, you can cut out the specified seconds and extract feature vectors. The slice [0] represents the start time and slice [1] accounts for the end time. Please describe it all in seconds.
+
 Please see [meyda wiki][] for parameters (bufferSize, windowFunc, feature) on features since meyda is used for feature extraction.
 
-[meyda wiki]:https://github.com/meyda/meyda/wiki "meyda wiki"
+[meyda wiki]:https://github.com/meyda/meyda/wiki/audio-features "meyda wiki"
