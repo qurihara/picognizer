@@ -13,7 +13,7 @@ https://www.youtube.com/watch?v=CoYJmNdxPNY (English)
 ## Browser example (works best with Firefox on PC/Mac/Android)
 
 Click this:
-https://qurihara.github.io/picognizer/script.html?cri=48&surl=https://rawgit.com/qurihara/picognizer/master/scripts/bg_red.js&src=https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3&frame=0.04&dur=0.01
+https://qurihara.github.io/picognizer/script.html?cri=48&surl=https://rawgit.com/qurihara/picognizer/gh-pages/scripts/bg_red.js&src=https://rawgit.com/Fulox/FullScreenMario-JSON/master/Sounds/Sounds/mp3/Coin.mp3&frame=0.04&dur=0.01
 
 This example can detect a famous sound effect of getting a coin in Super Mario Brothers.
 Press "Picognize" button and add permission of using your mic.
