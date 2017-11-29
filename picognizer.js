@@ -117,7 +117,7 @@ var Pico = function() {
     var data = [];
     effectdata = {};
 
-    //mic
+    //input source
     if (inputState.type === "audio" && inputState.inputOn === false) {
       var inputData = function func() {
         usingAudio(inputState);
@@ -132,14 +132,19 @@ var Pico = function() {
 
     if (!(audiofile instanceof Array)) {
       audionum = 1;
-      loadAudio(audiofile, data, options);
+      loadAudio(audiofile, data, options, true);
       effectdata[0] = data;
     } else {
       audionum = audiofile.length;
       for (let n = 0; n < audionum; n++) {
         data = [];
         var key = String(n);
-        loadAudio(audiofile[n], data, options);
+        if (n == audionum-1) { //last file
+          loadAudio(audiofile[n], data, options, true);
+        }
+        else {
+          loadAudio(audiofile[n], data, options, false);
+        }
         effectdata[key] = data;
       }
     }
@@ -208,6 +213,7 @@ function usingMic(inputState) {
 
       inputState.inputOn = true;
       costfunc.execfuncs();
+
     },
     function(err) { //error
       alert("Error accessing the microphone.");
@@ -229,7 +235,7 @@ function loadEffectAudio(audiofile, callback) {
 }
 
 //sound effect
-function loadAudio(filename, data, options) {
+function loadAudio(filename, data, options, flg) {
 
   var checkspec = checkSpectrum(options);
   var signal;
@@ -249,8 +255,9 @@ function loadAudio(filename, data, options) {
         console.log("Slice size should be smaller than %f", signal.length / sr);
         console.log("Set end of slice  to singal size");
       } else {
-        var array = options.silce * sr;
-        signal = signal.slice(array[0], array[1]);
+        var index0 = parseInt(options.slice[0] * sr);
+        var index1 = parseInt(options.slice[1] * sr);
+        signal = signal.slice(index0, index1);
       }
     }
 
@@ -270,7 +277,7 @@ function loadAudio(filename, data, options) {
       startframe = startframe + framesize;
       endframe = startframe + framesize;
 
-      if (n === maxframe - 1) {
+      if (n === maxframe - 1 && flg  == true) {
         micfunc.execfuncs();
       }
     }
@@ -311,8 +318,8 @@ function costCalculation(effectdata, options, callback) {
   var silbuff = new RingBuffer(RingBufferSize); //for silence ditection
 
   clearInterval(repeatTimer);
-  //meyda.start(options.featureExtractors);
 
+  //　一緒にしたけど毎回判定する盤
   setInterval(function() {
     var features = meyda.get(options.featureExtractors[0]);
     silbuff.add(meyda.get("rms"));
@@ -327,6 +334,7 @@ function costCalculation(effectdata, options, callback) {
 
   //cost
   repeatTimer = setInterval(function() {
+    //console.time('a');
     var buflen = buff.getCount();
     if (average(silbuff.buffer) < silence) {
       cost = silenceCost(effectnum);
@@ -344,7 +352,7 @@ function costCalculation(effectdata, options, callback) {
             }
           }
         }
-        if (options.mode === "direct") {
+        else if (options.mode === "direct") {
           cost = distCalculation(effectdata, buff, effectnum, RingBufferSize);
         }
         if (callback != null) {
@@ -352,7 +360,9 @@ function costCalculation(effectdata, options, callback) {
         }
       }
     }
+    //console.timeEnd('a');
   }, 1000 * options.duration)
+
 }
 
 //silence Cost
@@ -456,4 +466,4 @@ function detectPow(value) {
   return Math.pow(2, n);
 }
 
-module.exports = Pico;
+module.exports = picognizer;
