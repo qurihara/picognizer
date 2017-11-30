@@ -292,7 +292,7 @@ function costCalculation(effectdata, options, callback) {
   var checkspec = checkSpectrum(options);
   var effectnum = Object.keys(effectdata).length;
   var cost;
-  const silence = 0.00005;
+  const silence = 0.0001;
 
   options.source = source.input;
 
@@ -319,7 +319,6 @@ function costCalculation(effectdata, options, callback) {
 
   clearInterval(repeatTimer);
 
-  //　一緒にしたけど毎回判定する盤
   setInterval(function() {
     var features = meyda.get(options.featureExtractors[0]);
     silbuff.add(meyda.get("rms"));
@@ -466,4 +465,4 @@ function detectPow(value) {
   return Math.pow(2, n);
 }
 
-module.exports = picognizer;
+module.exports = Pico;
