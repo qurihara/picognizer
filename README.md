@@ -32,7 +32,7 @@ The onfire() function is executed for each detection.
 The current implementation of Picognizer is web-oriented.
 However you can also introduce Picognizer with Node.js coding style using beefy[https://www.npmjs.com/package/beefy].
 
-    npm i beefy browserify -g
+    npm i beefy browserify debug -g
     beefy node_beefy_example.js --live --open
 
 Then a browser opens to run the example.
