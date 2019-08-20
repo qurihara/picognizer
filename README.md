@@ -65,7 +65,7 @@ See node_beefy_example.js for checking up the actual coding mannar.
 
     P.oncost('url_for_audiofilename.mp3', function(cost){
       // do something with cost      
-    }
+    });
 
 ### option
 #### bufferSize
